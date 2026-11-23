@@ -88,7 +88,6 @@ export const agentApi = {
 export const settingsApi = {
   get: () => request('/settings', { schema: settingsSchema }),
   update: (body: unknown) => request('/settings', { method: 'PUT', body, schema: settingsSchema }),
-  discoverModels: () => request('/settings/llm/local-discovery', { schema: looseObjectSchema }),
   upsertProfile: (profile: unknown, activate = false) =>
     request('/settings/llm/profiles', { method: 'POST', body: { profile, activate }, schema: settingsSchema }),
   activateProfile: (id: string) =>

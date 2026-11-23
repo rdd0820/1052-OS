@@ -6,7 +6,6 @@ import {
   updateLlmTaskRoutes,
   updateSettings,
 } from '../../settings/settings.service.js'
-import { discoverLocalModels } from '../../settings/local-llm-discovery.service.js'
 import type { LLMTaskKind } from '../../settings/settings.types.js'
 import {
   shouldUseProviderCaching,
@@ -135,19 +134,6 @@ export const agentRuntimeTools: AgentTool[] = [
 
       const settings = await updateSettings({ agent: { morningBrief: patch } })
       return { morningBrief: settings.agent.morningBrief }
-    },
-  },
-  {
-    name: 'agent_llm_local_model_scan',
-    description:
-      'Scan localhost for installed local LLM servers and return OpenAI-compatible model candidates. Read-only and does not expose API keys.',
-    parameters: {
-      type: 'object',
-      properties: {},
-      additionalProperties: false,
-    },
-    async execute() {
-      return discoverLocalModels()
     },
   },
   {

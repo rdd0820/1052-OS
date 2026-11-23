@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import { httpError } from '../../http-error.js'
-import { discoverLocalModels } from './local-llm-discovery.service.js'
 import {
   activateLlmProfile,
   getPublicSettings,
@@ -23,14 +22,6 @@ settingsRouter.put('/', async (req, res, next) => {
   try {
     const patch = req.body ?? {}
     res.json(await updateSettings(patch))
-  } catch (e) {
-    next(e)
-  }
-})
-
-settingsRouter.get('/llm/local-discovery', async (_req, res, next) => {
-  try {
-    res.json(await discoverLocalModels())
   } catch (e) {
     next(e)
   }

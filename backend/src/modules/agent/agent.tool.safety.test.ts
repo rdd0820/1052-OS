@@ -5,7 +5,6 @@ describe('classifyToolSafety', () => {
   it('classifies read-only inspection tools as read', () => {
     const readOnlyNames = [
       'agent_runtime_status',
-      'agent_llm_local_model_scan',
       'filesystem_stat_path',
       'filesystem_list_directory',
       'filesystem_search_files',
