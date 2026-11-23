@@ -1,9 +1,8 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import {
   ArrowRight,
   Bell,
   Bot,
-  Check,
   CircleAlert,
   Clock3,
   MemoryStick,
@@ -13,15 +12,13 @@ import {
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { navSections } from '../app/navigation'
-import { calendarApi, memoryApi, notificationsApi, settingsApi } from '../data/api'
-import { useShellStore } from '../state/shell'
-import { AsyncState, Badge, Button, IconButton, Surface, Textarea, Tooltip } from '../components/ui'
-import { MobileTabs, PageBody, PageHeader } from './PageLayout'
-import styles from './today.module.css'
+import { useNavigate } from 'react-router-dom'
+import { AsyncState, Badge, Button, IconButton, Surface, Textarea, Tooltip } from '../../components/ui'
+import { calendarApi, memoryApi, notificationsApi, settingsApi } from '../../data/api'
+import { useShellStore } from '../../state/shell'
+import { SectionPage } from '../layout'
+import styles from '../today.module.css'
 
-const dateFormatter = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
 const timeFormatter = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 
 function isToday(date: string) {
@@ -30,47 +27,17 @@ function isToday(date: string) {
   return year === now.getFullYear() && month === now.getMonth() + 1 && day === now.getDate()
 }
 
-function NotificationsView() {
-  const client = useQueryClient()
-  const notifications = useQuery({ queryKey: ['notifications'], queryFn: notificationsApi.list })
-  const mark = useMutation({
-    mutationFn: notificationsApi.markRead,
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
-  })
-  const markAll = useMutation({
-    mutationFn: notificationsApi.markAllRead,
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['notifications'] }),
-  })
-
+function ShieldNotice({ count, onOpen }: { count: number; onOpen: () => void }) {
   return (
-    <PageBody>
-      <PageHeader
-        eyebrow="Activity"
-        title="通知中心"
-        description="集中查看定时任务和 Runtime 产生的重要事件。"
-        actions={<Button onClick={() => markAll.mutate()} disabled={markAll.isPending}>全部已读</Button>}
-      />
-      <MobileTabs items={navSections[0].items} />
-      <Surface>
-        <AsyncState loading={notifications.isLoading} error={notifications.error} empty={!notifications.data?.length}>
-          <div className={styles.notificationList}>
-            {notifications.data?.map((item) => (
-              <button key={item.id} type="button" className={`${styles.notificationRow} ${item.read ? '' : styles.unread}`} onClick={() => !item.read && mark.mutate(item.id)}>
-                <span className={`${styles.levelDot} ${styles[item.level]}`} />
-                <span><strong>{item.title}</strong><small>{item.message}</small></span>
-                <time>{timeFormatter.format(item.createdAt)}</time>
-                {!item.read ? <Badge tone="warning">未读</Badge> : <Check size={15} />}
-              </button>
-            ))}
-          </div>
-        </AsyncState>
-      </Surface>
-    </PageBody>
+    <button type="button" onClick={onOpen}>
+      <span><Clock3 size={17} /></span>
+      <div><strong>{count} 个操作等待确认</strong><small>Runtime 已暂停相关工具，确认后会继续运行。</small></div>
+      <span className={styles.approvalAction}>立即处理</span>
+    </button>
   )
 }
 
-export default function TodayPage() {
-  const location = useLocation()
+export default function TodayOverview() {
   const navigate = useNavigate()
   const runtime = useShellStore((state) => state.runtime)
   const setInspectorOpen = useShellStore((state) => state.setInspectorOpen)
@@ -91,8 +58,6 @@ export default function TodayPage() {
   const pendingApprovals = runtime.traces.filter((trace) => trace.kind === 'approval' && trace.status === 'warning')
   const runtimeActive = runtime.status === 'running' || runtime.status === 'waiting-approval'
 
-  if (location.pathname.endsWith('/activity')) return <NotificationsView />
-
   const submit = () => {
     const value = prompt.trim()
     if (!value) return
@@ -100,15 +65,7 @@ export default function TodayPage() {
   }
 
   return (
-    <PageBody className={styles.today}>
-      <PageHeader
-        eyebrow="Today"
-        title={dateFormatter.format(new Date())}
-        description="今天的重要事项、运行状态和知识动态都在这里。"
-        actions={<Button onClick={() => navigate('/chat')}><Bot size={15} />进入对话</Button>}
-      />
-      <MobileTabs items={navSections[0].items} />
-
+    <SectionPage className={styles.today} actions={<Button onClick={() => navigate('/chat')}><Bot size={15} />进入对话</Button>}>
       <motion.section className={styles.commandDeck} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42 }}>
         <div className={styles.deckSignal} aria-hidden="true"><span /><span /><span /></div>
         <div className={styles.deckCopy}>
@@ -208,16 +165,6 @@ export default function TodayPage() {
           </AsyncState>
         </Surface>
       </div>
-    </PageBody>
-  )
-}
-
-function ShieldNotice({ count, onOpen }: { count: number; onOpen: () => void }) {
-  return (
-    <button type="button" onClick={onOpen}>
-      <span><Clock3 size={17} /></span>
-      <div><strong>{count} 个操作等待确认</strong><small>Runtime 已暂停相关工具，确认后会继续运行。</small></div>
-      <span className={styles.approvalAction}>立即处理</span>
-    </button>
+    </SectionPage>
   )
 }

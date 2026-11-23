@@ -1,7 +1,7 @@
-import { NavLink } from 'react-router-dom'
-import type { ReactNode } from 'react'
-import type { NavEntry } from '../app/navigation'
-import styles from './pages.module.css'
+import { Suspense, type ReactNode } from 'react'
+import { NavLink, Outlet, useOutletContext } from 'react-router-dom'
+import type { NavEntry } from '../../app/navigation'
+import styles from '../pages.module.css'
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
   return (
@@ -26,4 +26,23 @@ export function MobileTabs({ items }: { items: NavEntry[] }) {
 
 export function PageBody({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`${styles.pageBody} ${className}`}>{children}</div>
+}
+
+export function SectionPage({ actions, className = '', children }: { actions?: ReactNode; className?: string; children?: ReactNode }) {
+  const items = useOutletContext<NavEntry[]>()
+  return (
+    <PageBody className={className}>
+      {actions ? <div className={styles.pageToolbar}>{actions}</div> : null}
+      <MobileTabs items={items} />
+      {children}
+    </PageBody>
+  )
+}
+
+export function SectionLayout({ items }: { items: NavEntry[] }) {
+  return (
+    <Suspense fallback={null}>
+      <Outlet context={items} />
+    </Suspense>
+  )
 }

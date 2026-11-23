@@ -45,6 +45,12 @@
   gap: 8px;
 }
 
+.pageToolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 16px;
+}
+
 .mobileTabs {
   display: none;
 }

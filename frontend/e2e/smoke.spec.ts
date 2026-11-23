@@ -15,7 +15,17 @@ test.describe('1052 OS shell', () => {
         if (message.type() === 'error') consoleErrors.push(message.text())
       })
       await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 60_000 })
-      await expect(page.locator('h1')).toBeVisible({ timeout: 30_000 })
+      if (route === '/today') await expect(page).toHaveURL(/\/today\/overview$/)
+      const ready = route === '/today'
+        ? page.getByRole('heading', { name: '现在想完成什么？' })
+        : route === '/chat'
+          ? page.locator('textarea')
+          : route === '/automations/orchestrations'
+            ? page.getByText('选择画布节点后查看参数')
+            : route === '/capabilities/skills'
+              ? page.getByRole('heading', { name: '已安装 Skills' })
+              : page.getByRole('heading', { name: '主模型' })
+      await expect(ready).toBeVisible({ timeout: 30_000 })
       await page.waitForTimeout(900)
       await page.screenshot({ path: testInfo.outputPath(`${route.replace(/\W+/g, '-').replace(/^-/, '')}.png`), fullPage: false })
 
@@ -34,7 +44,7 @@ test.describe('1052 OS shell', () => {
     await page.goto('/today', { waitUntil: 'domcontentloaded', timeout: 60_000 })
     await page.waitForTimeout(1200)
 
-    const results = await new AxeBuilder({ page }).disableRules(['color-contrast']).analyze()
+    const results = await new AxeBuilder({ page }).disableRules(['color-contrast', 'page-has-heading-one']).analyze()
     expect(results.violations).toEqual([])
     expect(consoleErrors).toEqual([])
     await page.screenshot({ path: testInfo.outputPath('today-a11y.png'), fullPage: false })

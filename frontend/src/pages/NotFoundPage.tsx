@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui'
-import { PageBody, PageHeader } from './PageLayout'
+import { PageBody, PageHeader } from './layout'
 
 export default function NotFoundPage() {
   const navigate = useNavigate()

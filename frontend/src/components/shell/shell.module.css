@@ -12,6 +12,14 @@
   grid-template-columns: var(--rail-width) var(--section-width) minmax(0, 1fr) var(--inspector-width);
 }
 
+.shellNoSection {
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+}
+
+.shellNoSection.inspectorVisible {
+  grid-template-columns: var(--rail-width) minmax(0, 1fr) var(--inspector-width);
+}
+
 .rail,
 .sectionPanel,
 .contentFrame,
@@ -404,6 +412,9 @@
   .inspectorVisible {
     grid-template-columns: var(--rail-width) var(--section-width) minmax(0, 1fr);
   }
+  .shellNoSection.inspectorVisible {
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  }
   .inspector {
     position: fixed;
     z-index: 60;
@@ -414,7 +425,9 @@
 
 @media (max-width: 760px) {
   .shell,
-  .inspectorVisible {
+  .inspectorVisible,
+  .shellNoSection,
+  .shellNoSection.inspectorVisible {
     grid-template-columns: minmax(0, 1fr);
     padding-bottom: 58px;
   }

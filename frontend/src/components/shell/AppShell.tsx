@@ -14,6 +14,7 @@ export function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const current = sectionForPath(location.pathname)
+  const hasSectionNav = current.items.length > 0
   const settingsSection = navSections.find((section) => section.id === 'settings')!
   const breadcrumb = entryForPath(location.pathname)
   const inspectorOpen = useShellStore((state) => state.inspectorOpen)
@@ -29,7 +30,7 @@ export function AppShell() {
   }, [theme])
 
   return (
-    <div className={`${styles.shell} ${inspectorOpen ? styles.inspectorVisible : ''}`}>
+    <div className={`${styles.shell} ${hasSectionNav ? '' : styles.shellNoSection} ${inspectorOpen ? styles.inspectorVisible : ''}`}>
       <aside className={styles.rail} aria-label="主导航">
         <NavLink to="/today" className={styles.brand} aria-label="1052 OS"><span>10</span><span>52</span></NavLink>
         <nav className={styles.railNav} aria-label="主导航快捷入口">
@@ -42,25 +43,34 @@ export function AppShell() {
           ))}
         </nav>
         <div className={styles.railBottom}>
-          <Tooltip side='right' label="设置"><NavLink to="/settings/models" className={`${styles.railLink} ${current.id === 'settings' ? styles.railActive : ''}`} aria-label="设置"><settingsSection.icon size={19} /></NavLink></Tooltip>
+          <Tooltip side='right' label="设置"><NavLink to={settingsSection.path} className={`${styles.railLink} ${current.id === 'settings' ? styles.railActive : ''}`} aria-label="设置"><settingsSection.icon size={19} /></NavLink></Tooltip>
         </div>
       </aside>
 
-      <aside className={styles.sectionPanel} aria-label={`${current.label}导航`}>
-        <header><strong>{current.label}</strong></header>
-        <nav aria-label={`${current.label}分区导航`}>
-          {current.items.map((item) => (
-            <NavLink key={item.path} to={item.path} end={item.path === '/today' || item.path === '/chat'} className={({ isActive }) => `${styles.sectionLink} ${isActive ? styles.sectionActive : ''}`}>
-              <item.icon size={16} /><span>{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
+      {hasSectionNav ? (
+        <aside className={styles.sectionPanel} aria-label={`${current.label}导航`}>
+          <header><strong>{current.label}</strong></header>
+          <nav aria-label={`${current.label}分区导航`}>
+            {current.items.map((item) => (
+              <NavLink key={item.path} to={item.path} className={({ isActive }) => `${styles.sectionLink} ${isActive ? styles.sectionActive : ''}`}>
+                <item.icon size={16} /><span>{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
+      ) : null}
 
       <main className={styles.contentFrame}>
         <header className={styles.topbar}>
           <div className={styles.breadcrumb}>
-            <span>{breadcrumb.section.label}</span><strong>{breadcrumb.entry.label}</strong>
+            {breadcrumb.entry ? (
+              <>
+                <span>{breadcrumb.section.label}</span>
+                <strong>{breadcrumb.entry.label}</strong>
+              </>
+            ) : (
+              <strong>{breadcrumb.section.label}</strong>
+            )}
           </div>
           <div className={styles.topActions}>
             <button type="button" className={styles.searchButton} aria-label="打开搜索与命令面板" onClick={() => setCommandOpen(true)}><Search size={15} /><span>搜索与命令</span></button>

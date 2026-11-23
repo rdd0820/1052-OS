@@ -49,7 +49,7 @@ export const navSections: NavSection[] = [
     path: '/today',
     icon: Home,
     items: [
-      { label: '今日概览', path: '/today', icon: Activity },
+      { label: '今日概览', path: '/today/overview', icon: Activity },
       { label: '通知中心', path: '/today/activity', icon: Bell },
     ],
   },
@@ -58,12 +58,12 @@ export const navSections: NavSection[] = [
     label: '对话',
     path: '/chat',
     icon: Bot,
-    items: [{ label: 'Agent 对话', path: '/chat', icon: Sparkles }],
+    items: [],
   },
   {
     id: 'workspace',
     label: '工作区',
-    path: '/workspace/repositories',
+    path: '/workspace',
     icon: CodeXml,
     items: [
       { label: '本地仓库', path: '/workspace/repositories', icon: FolderGit2 },
@@ -78,7 +78,7 @@ export const navSections: NavSection[] = [
   {
     id: 'knowledge',
     label: '知识',
-    path: '/knowledge/notes',
+    path: '/knowledge',
     icon: Library,
     items: [
       { label: '笔记', path: '/knowledge/notes', icon: NotebookText },
@@ -93,7 +93,7 @@ export const navSections: NavSection[] = [
   {
     id: 'automations',
     label: '自动化',
-    path: '/automations/calendar',
+    path: '/automations',
     icon: Workflow,
     items: [
       { label: '日历', path: '/automations/calendar', icon: CalendarDays },
@@ -105,7 +105,7 @@ export const navSections: NavSection[] = [
   {
     id: 'capabilities',
     label: '能力与连接',
-    path: '/capabilities/skills',
+    path: '/capabilities',
     icon: Blocks,
     items: [
       { label: 'Skills', path: '/capabilities/skills', icon: Sparkles },
@@ -117,7 +117,7 @@ export const navSections: NavSection[] = [
   {
     id: 'settings',
     label: '设置',
-    path: '/settings/models',
+    path: '/settings',
     icon: Settings,
     items: [
       { label: '模型接入', path: '/settings/models', icon: Bot },
@@ -146,5 +146,8 @@ export function entryForPath(pathname: string) {
 }
 
 export const commandEntries = navSections.flatMap((section) => {
-  return section.items.map((entry) => ({ ...entry, section: section.label }))
+  const entries = section.items.length > 0
+    ? section.items
+    : [{ label: section.label, path: section.path, icon: section.icon }]
+  return entries.map((entry) => ({ ...entry, section: section.label }))
 })
