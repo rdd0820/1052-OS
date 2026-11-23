@@ -145,6 +145,6 @@ export function entryForPath(pathname: string) {
   return { section, entry: section.items[0] }
 }
 
-export const commandEntries = navSections.flatMap((section) =>
-  section.items.map((entry) => ({ ...entry, section: section.label })),
-)
+export const commandEntries = navSections.flatMap((section) => {
+  return section.items.map((entry) => ({ ...entry, section: section.label }))
+})

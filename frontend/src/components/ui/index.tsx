@@ -38,13 +38,13 @@ export const IconButton = forwardRef<HTMLButtonElement, ButtonProps>(function Ic
   return <button ref={ref} className={`${styles.iconButton} ${styles[variant]} ${className}`} type="button" {...props} />
 })
 
-export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
+export function Tooltip({ label, side = 'top', children }: { label: string; side?: 'top' | 'right' | 'bottom' | 'left'; children: ReactNode }) {
   return (
-    <TooltipPrimitive.Provider delayDuration={350}>
+    <TooltipPrimitive.Provider delayDuration={200}>
       <TooltipPrimitive.Root>
         <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
-          <TooltipPrimitive.Content sideOffset={7} className={styles.badge}>
+          <TooltipPrimitive.Content side={side} sideOffset={7} className={`${styles.badge} ${styles.tooltip}`}>
             {label}
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
@@ -98,17 +98,17 @@ export function AsyncState({ loading, error, empty, children }: { loading?: bool
   return <>{children}</>
 }
 
-export function Dialog({ open, onOpenChange, title, children, footer }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; children: ReactNode; footer?: ReactNode }) {
+export function Dialog({ open, onOpenChange, title, children, footer, contentClassName = '', bodyClassName = '' }: { open: boolean; onOpenChange: (open: boolean) => void; title: string; children: ReactNode; footer?: ReactNode; contentClassName?: string; bodyClassName?: string }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={styles.dialogOverlay} />
-        <DialogPrimitive.Content className={styles.dialogContent}>
+        <DialogPrimitive.Content className={`${styles.dialogContent} ${contentClassName}`}>
           <header className={styles.dialogHeader}>
             <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
             <DialogPrimitive.Close asChild><IconButton aria-label="关闭"><X size={17} /></IconButton></DialogPrimitive.Close>
           </header>
-          <div className={styles.dialogBody}>{children}</div>
+          <div className={`${styles.dialogBody} ${bodyClassName}`}>{children}</div>
           {footer ? <footer className={styles.dialogFooter}>{footer}</footer> : null}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

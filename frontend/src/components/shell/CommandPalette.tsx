@@ -41,7 +41,7 @@ export function CommandPalette() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen} title="搜索与命令">
+    <Dialog open={open} onOpenChange={setOpen} title="搜索与命令" contentClassName={styles.commandDialog} bodyClassName={styles.commandBody}>
       <div className={styles.commandInput}>
         <Search size={17} />
         <Input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="查找页面或能力" />

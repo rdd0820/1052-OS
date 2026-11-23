@@ -469,7 +469,7 @@ flowchart TD
 - `contracts/schemas.ts` 定义 Zod 请求/响应契约。
 - `data/api.ts` 提供统一 ApiClient。
 - `runtime/runtime.ts` 管理 SSE 流、取消、Runtime Trace reducer。
-- `components/shell` 负责主导航、命令面板、运行检查器和系统场。
+- `components/shell` 负责主导航、命令面板和运行检查器。
 - `styles/tokens.css`、`styles/base.css` 和 CSS Modules 共同组成样式系统。
 - CodeMirror、React Flow、Mermaid 等重模块按路由懒加载。
 

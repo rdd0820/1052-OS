@@ -47,20 +47,6 @@ const context = await browser.newContext({ viewport: viewports[0] })
 const page = await context.newPage()
 await page.goto(baseUrl + '/today', { waitUntil: 'domcontentloaded', timeout: 35_000 })
 await page.waitForTimeout(1_200)
-const canvasStats = await page.locator('[data-testid="system-field"]').evaluate((canvas) => {
-  const element = canvas
-  const context = element.getContext('2d')
-  if (!context) return { width: element.width, height: element.height, pixels: 0 }
-  const sample = context.getImageData(0, 0, Math.min(element.width, 220), Math.min(element.height, 160)).data
-  let pixels = 0
-  for (let index = 3; index < sample.length; index += 4) {
-    if (sample[index] > 0) pixels += 1
-  }
-  return { width: element.width, height: element.height, pixels }
-})
-if (canvasStats.width <= 0 || canvasStats.height <= 0 || canvasStats.pixels <= 50) {
-  failures.push(`system field canvas is blank: ${JSON.stringify(canvasStats)}`)
-}
 
 const axeResults = await new AxeBuilder({ page }).analyze()
 if (axeResults.violations.length) {

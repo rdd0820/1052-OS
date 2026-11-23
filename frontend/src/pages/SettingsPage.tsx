@@ -385,7 +385,7 @@ function AppearanceSettings() {
         </div>
       </Surface>
       <Surface title="动态与可访问性">
-        <div className={styles.settingRows}><div><span><strong>减少动态</strong><small>停止系统场动画并简化界面转场</small></span><Switch label="减少动态" checked={reduceMotion} onCheckedChange={setReduceMotion} /></div></div>
+        <div className={styles.settingRows}><div><span><strong>减少动态</strong><small>简化界面转场</small></span><Switch label="减少动态" checked={reduceMotion} onCheckedChange={setReduceMotion} /></div></div>
       </Surface>
       <AppearanceThemeRegistry />
       <div className={styles.stickySave}><Button variant="primary" onClick={() => save.mutate()}><Check size={15} />保存外观设置</Button></div>

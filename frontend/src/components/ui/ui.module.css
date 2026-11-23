@@ -85,6 +85,11 @@
   line-height: 1.2;
 }
 
+.tooltip {
+  position: relative;
+  z-index: 30;
+}
+
 .badgeSuccess {
   border-color: rgba(102, 217, 154, 0.32);
   background: var(--success-soft);

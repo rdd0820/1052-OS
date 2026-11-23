@@ -72,7 +72,6 @@ function NotificationsView() {
 export default function TodayPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const profile = useShellStore((state) => state.profile)
   const runtime = useShellStore((state) => state.runtime)
   const setInspectorOpen = useShellStore((state) => state.setInspectorOpen)
   const [prompt, setPrompt] = useState('')
@@ -104,7 +103,7 @@ export default function TodayPage() {
     <PageBody className={styles.today}>
       <PageHeader
         eyebrow="Today"
-        title={`${profile.name}，${dateFormatter.format(new Date())}`}
+        title={dateFormatter.format(new Date())}
         description="今天的重要事项、运行状态和知识动态都在这里。"
         actions={<Button onClick={() => navigate('/chat')}><Bot size={15} />进入对话</Button>}
       />

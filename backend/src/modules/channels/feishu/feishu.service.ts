@@ -852,7 +852,7 @@ export async function sendFeishuScheduledTaskCardMessage(params: {
     status: params.status,
     enabled: params.enabled,
     notificationId: params.notificationId,
-    url: await resolveWorkspaceAppUrl('/calendar'),
+    url: await resolveWorkspaceAppUrl('/automations/calendar'),
   })
   return sendFeishuCardToResolvedTarget({
     card,
@@ -874,7 +874,7 @@ export async function sendFeishuMemorySuggestionCardMessage(params: {
     title: params.title,
     content: trimCardText(params.content),
     tags: params.tags,
-    url: await resolveWorkspaceAppUrl('/memory'),
+    url: await resolveWorkspaceAppUrl('/knowledge/memory'),
   })
   return sendFeishuCardToResolvedTarget({
     card,
@@ -1404,7 +1404,7 @@ async function handleFeishuCardAction(data: any) {
     if (action.actionType === 'task_run_now' && action.taskId) {
       const { triggerScheduledTaskNow } = await import('../../calendar/calendar.schedule.service.js')
       const task = await triggerScheduledTaskNow(action.taskId)
-      const openUrl = await resolveWorkspaceAppUrl('/calendar')
+      const openUrl = await resolveWorkspaceAppUrl('/automations/calendar')
       return buildCardActionResult({
         title: task.title,
         content: trimCardText(task.lastRunSummary || 'The task has been triggered.'),
@@ -1438,7 +1438,7 @@ async function handleFeishuCardAction(data: any) {
       const current = await getScheduledTask(action.taskId)
       const enabled = typeof action.enabled === 'boolean' ? action.enabled : !current.enabled
       const task = await setScheduledTaskEnabled(action.taskId, enabled)
-      const openUrl = await resolveWorkspaceAppUrl('/calendar')
+      const openUrl = await resolveWorkspaceAppUrl('/automations/calendar')
       return buildCardActionResult({
         title: task.title,
         content: trimCardText(
@@ -1471,7 +1471,7 @@ async function handleFeishuCardAction(data: any) {
     if (action.actionType === 'memory_confirm_suggestion' && action.entityId) {
       const { confirmMemorySuggestion } = await import('../../memory/memory.service.js')
       const memory = await confirmMemorySuggestion(action.entityId)
-      const openUrl = await resolveWorkspaceAppUrl('/memory')
+      const openUrl = await resolveWorkspaceAppUrl('/knowledge/memory')
       return buildCardActionResult({
         title: memory.title,
         content: trimCardText(memory.content),

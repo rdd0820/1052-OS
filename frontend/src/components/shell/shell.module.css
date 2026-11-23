@@ -8,26 +8,8 @@
   background: var(--bg-canvas);
 }
 
-.shell > canvas {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.82;
-  pointer-events: none;
-}
-
-.sectionCollapsed {
-  grid-template-columns: var(--rail-width) 0 minmax(0, 1fr);
-}
-
 .inspectorVisible {
   grid-template-columns: var(--rail-width) var(--section-width) minmax(0, 1fr) var(--inspector-width);
-}
-
-.sectionCollapsed.inspectorVisible {
-  grid-template-columns: var(--rail-width) 0 minmax(0, 1fr) var(--inspector-width);
 }
 
 .rail,
@@ -106,27 +88,6 @@
   content: '';
 }
 
-.avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid var(--line-default);
-  border-radius: 50%;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .sectionPanel {
   display: flex;
   min-width: 0;
@@ -134,34 +95,14 @@
   overflow: hidden;
   border-right: 1px solid var(--line-subtle);
   background: color-mix(in srgb, var(--bg-panel) 91%, transparent);
-  transition: width 220ms var(--ease-standard), opacity 160ms var(--ease-standard);
-}
-
-.sectionCollapsed .sectionPanel {
-  width: 0;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .sectionPanel > header {
   display: flex;
-  min-height: 84px;
+  height: var(--topbar-height);
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 11px 12px 16px;
+  padding: 0 14px;
   border-bottom: 1px solid var(--line-subtle);
-}
-
-.sectionPanel > header div {
-  display: grid;
-  gap: 3px;
-}
-
-.sectionPanel > header span {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
 }
 
 .sectionPanel > header strong {
@@ -198,36 +139,6 @@
 
 .sectionActive svg {
   color: var(--accent);
-}
-
-.sectionStatus {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-top: auto;
-  padding: 14px 16px;
-  border-top: 1px solid var(--line-subtle);
-}
-
-.sectionStatus div {
-  display: grid;
-}
-
-.sectionStatus strong {
-  font-size: 11px;
-}
-
-.sectionStatus small {
-  color: var(--text-muted);
-  font-size: 10px;
-}
-
-.onlineDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 12px rgba(102, 217, 154, 0.46);
 }
 
 .contentFrame {
@@ -439,6 +350,24 @@
 .traceDetail > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .inspectorEmpty { padding: 36px 14px; color: var(--text-muted); text-align: center; }
 
+.commandDialog.commandDialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.commandDialog.commandDialog > header {
+  flex-shrink: 0;
+}
+
+.commandBody.commandBody {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
 .commandInput {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
@@ -447,14 +376,19 @@
 }
 
 .commandInput input { border-color: transparent; background: transparent; }
-.commandList { display: grid; gap: 3px; }
+.commandList {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-height: 0;
+  overflow: auto;
+}
 .commandItem {
   display: grid;
   min-height: 42px;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
@@ -470,9 +404,6 @@
   .inspectorVisible {
     grid-template-columns: var(--rail-width) var(--section-width) minmax(0, 1fr);
   }
-  .sectionCollapsed.inspectorVisible {
-    grid-template-columns: var(--rail-width) 0 minmax(0, 1fr);
-  }
   .inspector {
     position: fixed;
     z-index: 60;
@@ -483,9 +414,7 @@
 
 @media (max-width: 760px) {
   .shell,
-  .sectionCollapsed,
-  .inspectorVisible,
-  .sectionCollapsed.inspectorVisible {
+  .inspectorVisible {
     grid-template-columns: minmax(0, 1fr);
     padding-bottom: 58px;
   }

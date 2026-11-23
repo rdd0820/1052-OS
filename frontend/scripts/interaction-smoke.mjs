@@ -665,7 +665,7 @@ for (const [name, fn] of [
   ['today-partial-failure', async (page) => {
     await installApiMocks(page, { failTodayTasks: true })
     await page.goto(baseUrl + '/today', { waitUntil: 'domcontentloaded' })
-    await page.getByRole('heading', { name: /本地用户/ }).waitFor({ timeout: 15_000 })
+    await page.getByRole('heading', { name: /星期/ }).waitFor({ timeout: 15_000 })
     await page.getByText('今天的日程').waitFor({ timeout: 10_000 })
     await page.getByText('定时任务服务离线').waitFor({ timeout: 10_000 })
     await page.getByPlaceholder(/例如：整理今天的安排/).waitFor({ timeout: 10_000 })
