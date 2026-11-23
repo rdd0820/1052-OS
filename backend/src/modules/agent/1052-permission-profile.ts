@@ -15,14 +15,12 @@ export type PermissionProfile1052 = {
 
 export type PermissionSource1052 = {
   permissionProfile?: 'read-only' | 'default' | 'danger-full-access'
-  fullAccess?: boolean
 }
 
 export function resolve1052PermissionProfile(
   source: PermissionSource1052,
 ): PermissionProfile1052 {
-  const selected =
-    source.permissionProfile ?? (source.fullAccess === true ? 'danger-full-access' : 'default')
+  const selected = source.permissionProfile ?? 'default'
 
   if (selected === 'danger-full-access') {
     return {

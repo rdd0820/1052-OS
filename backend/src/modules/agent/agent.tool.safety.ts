@@ -78,8 +78,6 @@ const WRITE_OVERRIDES: ReadonlySet<string> = new Set([
   'memory_reject_suggestion',
   // PKM index rebuild — rewrites on-disk index files.
   'pkm_reindex',
-  // Activates a different LLM profile — changes subsequent agent behaviour globally.
-  'agent_llm_activate_profile',
 ])
 
 /**
@@ -103,8 +101,7 @@ const WRITE_PATTERNS: readonly RegExp[] = [
   /_(execute|run)(_|$)/,
   // e.g. feishu_send_message
   /_send(_|$)/,
-  // e.g. websearch_set_source_enabled, uapis_set_api_enabled, uapis_bulk_set_enabled,
-  //      agent_llm_set_task_route
+  // e.g. websearch_set_source_enabled, uapis_set_api_enabled, uapis_bulk_set_enabled
   /_set(_|$)/,
   // Any *_secure_* memory operation except the pure read ones — conservatively marked
   // as writes because the values are sensitive. The read-only names are

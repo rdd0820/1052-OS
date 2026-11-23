@@ -1,6 +1,6 @@
 import { chatCompletion } from '../agent/llm.client.js'
 import type { LLMConfig, LLMConversationMessage } from '../agent/llm.client.js'
-import { getSettings, resolveLlmConfigForTask } from '../settings/settings.service.js'
+import { getSettings } from '../settings/settings.service.js'
 import type { PkmIndexSuggestion, PkmCategory } from './pkm.types.js'
 
 const SYSTEM_PROMPT = `你是一个知识标引助手。你的任务是为给定的知识条目建议合适的标引信息。
@@ -38,14 +38,12 @@ function buildSuggestMessages(input: {
 }
 
 async function resolveLLMConfig(): Promise<LLMConfig> {
-  const settings = await getSettings()
-  const routed = resolveLlmConfigForTask(settings.llm, 'pkm-index')
+  const { llm } = await getSettings()
   return {
-    baseUrl: routed.baseUrl,
-    modelId: routed.modelId,
-    apiKey: routed.apiKey,
-    kind: routed.kind,
-    provider: routed.provider,
+    baseUrl: llm.baseUrl,
+    modelId: llm.modelId,
+    apiKey: llm.apiKey,
+    apiFormat: llm.apiFormat,
   }
 }
 

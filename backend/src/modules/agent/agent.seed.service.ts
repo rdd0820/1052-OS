@@ -1,4 +1,4 @@
-import { getSettings, resolveLlmConfigForTask } from '../settings/settings.service.js'
+import { getSettings } from '../settings/settings.service.js'
 import type { ChatMessage, StoredChatMessage } from './agent.types.js'
 import { chatCompletion, type LLMConversationMessage } from './llm.client.js'
 import { redactSensitiveText } from './agent.redaction.service.js'
@@ -54,7 +54,7 @@ function heuristicSeedFromText(text: string) {
 
 async function summarizeSeedWithModel(input: string) {
   const settings = await getSettings()
-  const llm = resolveLlmConfigForTask(settings.llm, 'summarization')
+  const llm = settings.llm
   const messages: LLMConversationMessage[] = [
     {
       role: 'system',
@@ -67,7 +67,7 @@ async function summarizeSeedWithModel(input: string) {
     },
   ]
   const response = await chatCompletion(llm, messages, [], {
-    providerCachingEnabled: settings.agent.providerCachingEnabled,
+    providerCachingEnabled: true,
   })
   try {
     const parsed = JSON.parse(response.content) as Record<string, unknown>
@@ -95,11 +95,6 @@ export async function ensureCheckpointSeedForSession(
   history: ChatMessage[],
   storedMessages?: StoredChatMessage[],
 ) {
-  const settings = await getSettings()
-  if (!settings.agent.checkpointEnabled || !settings.agent.seedOnResumeEnabled) {
-    return getCheckpoint(sessionId)
-  }
-
   const existing = await getCheckpoint(sessionId)
   if (
     existing.seedStatus === 'ready' ||

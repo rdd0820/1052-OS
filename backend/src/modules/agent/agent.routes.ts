@@ -9,7 +9,6 @@ import {
   subscribeChatHistory,
 } from './agent.history.service.js'
 import { compactChatHistory } from './agent.compaction.service.js'
-import { previewAgentMigration, runAgentMigration } from './agent.migration.service.js'
 import { getTokenUsageStats } from './agent.stats.service.js'
 import { saveAgentUpload } from './agent.upload.service.js'
 import { sendMessage, sendMessageStream } from './agent.service.js'
@@ -268,24 +267,6 @@ agentRouter.post('/history/compact', async (req, res, next) => {
   try {
     const body = req.body as { messages?: unknown }
     res.json(await compactChatHistory(body?.messages))
-  } catch (error) {
-    next(error)
-  }
-})
-
-agentRouter.post('/migrations/preview', async (req, res, next) => {
-  try {
-    const body = req.body as { sourcePath?: unknown }
-    res.json(await previewAgentMigration(body?.sourcePath))
-  } catch (error) {
-    next(error)
-  }
-})
-
-agentRouter.post('/migrations/run', async (req, res, next) => {
-  try {
-    const body = req.body as { sourcePath?: unknown; dryRun?: unknown }
-    res.json(await runAgentMigration(body))
   } catch (error) {
     next(error)
   }

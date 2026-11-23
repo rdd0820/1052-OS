@@ -101,8 +101,6 @@ describe('classifyToolSafety', () => {
       'memory_secure_delete',
       // agent/settings
       'agent_morning_brief_update',
-      'agent_llm_activate_profile',
-      'agent_llm_set_task_route',
       // wiki
       'wiki_raw_upload_from_agent_workspace',
       'wiki_page_write',

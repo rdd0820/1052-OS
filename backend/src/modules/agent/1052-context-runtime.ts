@@ -4,7 +4,6 @@ import { HttpError } from '../../http-error.js'
 import {
   formatMorningBriefRuntimeContext,
   getSettings,
-  resolveLlmConfigForTask,
 } from '../settings/settings.service.js'
 import { formatMemoryRuntimeContext } from '../memory/memory.service.js'
 import { formatOutputProfileRuntimeContext } from '../output-profiles/output-profile.service.js'
@@ -28,7 +27,6 @@ import { maybeCreateInferredMemorySuggestion } from './agent.memory-autosuggest.
 import {
   expandMountedPacks,
   getToolNamesForMountedPacks,
-  REQUESTABLE_PACKS,
 } from './agent.pack.service.js'
 import { buildP0Messages, getContextUpgradeToolDefinition } from './agent.p0.service.js'
 import { ensureCheckpointSeedForSession } from './agent.seed.service.js'
@@ -179,7 +177,7 @@ export async function createRuntime1052SessionState(
   options: Runtime1052RunOptions,
 ): Promise<Runtime1052SessionState> {
   const settings = await getSettings()
-  const llm = resolveLlmConfigForTask(settings.llm, 'agent-chat')
+  const llm = settings.llm
   const sessionId = deriveSessionId(options.runtimeContext)
   const storedMessages: StoredChatMessage[] | undefined = options.runtimeContext?.source
     ? undefined
@@ -187,20 +185,15 @@ export async function createRuntime1052SessionState(
   const latestUserContent = latestUserMessage(turn.history)?.content ?? ''
   let checkpoint = await ensureCheckpointSeedForSession(sessionId, turn.history, storedMessages)
 
-  if (settings.agent.checkpointEnabled && latestUserContent && !checkpoint.goal) {
+  if (latestUserContent && !checkpoint.goal) {
     checkpoint = await patchCheckpoint(sessionId, {
       goal: latestUserContent.replace(/\s+/g, ' ').trim().slice(0, 200),
     })
   }
 
-  const mode: Runtime1052Mode = settings.agent.progressiveDisclosureEnabled
-    ? 'progressive'
-    : 'full-toolbox'
-  const mountedPacks =
-    mode === 'progressive'
-      ? checkpoint.mountedPacks
-      : expandMountedPacks(REQUESTABLE_PACKS)
-  const contextPolicy = resolveRuntime1052ContextPolicy(settings.agent)
+  const mode: Runtime1052Mode = 'progressive'
+  const mountedPacks = checkpoint.mountedPacks
+  const contextPolicy = resolveRuntime1052ContextPolicy()
 
   return {
     turn,
@@ -226,11 +219,9 @@ export async function createRuntime1052SessionState(
 export async function buildRuntime1052StepContext(
   state: Runtime1052SessionState,
 ): Promise<Runtime1052StepContext> {
-  if (state.settings.agent.checkpointEnabled) {
-    state.checkpoint = await getCheckpoint(state.sessionId)
-  }
+  state.checkpoint = await getCheckpoint(state.sessionId)
 
-  const contextPolicy = resolveRuntime1052ContextPolicy(state.settings.agent)
+  const contextPolicy = resolveRuntime1052ContextPolicy()
   const history = safeSliceMessages(state.conversation, Math.max(1, contextPolicy.contextMessageLimit))
   const built = await buildP0Messages({
     history,
@@ -240,11 +231,9 @@ export async function buildRuntime1052StepContext(
     extraSections: await buildExtraSections(state),
   })
 
-  if (state.settings.agent.checkpointEnabled) {
-    state.checkpoint = await patchCheckpoint(state.sessionId, {
-      summaryInjectedTokens: built.injectedCheckpointTokens,
-    })
-  }
+  state.checkpoint = await patchCheckpoint(state.sessionId, {
+    summaryInjectedTokens: built.injectedCheckpointTokens,
+  })
 
   const tools =
     state.mode === 'full-toolbox'
@@ -312,12 +301,10 @@ export async function applyRuntime1052ContextUpgrade(
     validateContextUpgradeRequest({ packs: requestedPacks, reason }, state.upgradeCount)
   } catch (error) {
     const message = error instanceof HttpError ? error.message : 'Context upgrade validation failed'
-    if (state.settings.agent.checkpointEnabled) {
-      state.checkpoint = await appendCheckpointEntry(state.sessionId, {
-        failedAttempt: message,
-        mountedPacks: state.mountedPacks,
-      })
-    }
+    state.checkpoint = await appendCheckpointEntry(state.sessionId, {
+      failedAttempt: message,
+      mountedPacks: state.mountedPacks,
+    })
     return {
       ok: false,
       requestedPacks,
@@ -332,12 +319,10 @@ export async function applyRuntime1052ContextUpgrade(
     ...new Set([...state.mountedPacks, ...expandMountedPacks(requestedPacks)]),
   ]
   state.upgradeCount += 1
-  if (state.settings.agent.checkpointEnabled) {
-    state.checkpoint = await patchCheckpoint(state.sessionId, {
-      mountedPacks: state.mountedPacks,
-      nextStep: reason,
-    })
-  }
+  state.checkpoint = await patchCheckpoint(state.sessionId, {
+    mountedPacks: state.mountedPacks,
+    nextStep: reason,
+  })
 
   return {
     ok: true,
@@ -372,7 +357,6 @@ export async function recordRuntime1052ToolResults(
   messages: readonly LLMConversationMessage[],
 ) {
   toolCalls.forEach((toolCall) => state.usedToolNames.add(toolCall.function.name))
-  if (!state.settings.agent.checkpointEnabled) return
 
   const failure = extractToolFailure(messages)
   state.checkpoint = await appendCheckpointEntry(state.sessionId, {
@@ -425,12 +409,10 @@ export async function completeRuntime1052Session(
   state: Runtime1052SessionState,
   finalContent: string,
 ) {
-  if (state.settings.agent.checkpointEnabled) {
-    state.checkpoint = await appendCheckpointEntry(state.sessionId, {
-      done: stripThinkBlocks(finalContent).slice(0, 180),
-      mountedPacks: state.mountedPacks,
-    })
-  }
+  state.checkpoint = await appendCheckpointEntry(state.sessionId, {
+    done: stripThinkBlocks(finalContent).slice(0, 180),
+    mountedPacks: state.mountedPacks,
+  })
 
   await maybeCreateInferredMemorySuggestion({
     latestUserContent: state.latestUserContent,

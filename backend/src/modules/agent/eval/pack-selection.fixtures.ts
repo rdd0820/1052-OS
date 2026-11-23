@@ -64,9 +64,7 @@ export const PACK_SELECTION_FIXTURES: PackSelectionCase[] = [
   { id: 28, input: '生成今天的早报', expectedPacks: ['skill-pack'], tag: 'skill' },
 
   // ── settings-pack ──────────────────────────────────────────────────
-  { id: 29, input: '切换到 gpt-4 模型', expectedPacks: ['settings-pack'], tag: 'settings' },
   { id: 30, input: '把早报时间改成每天早上 8 点', expectedPacks: ['settings-pack'], tag: 'settings' },
-  { id: 31, input: '设置 agent-chat 任务使用 claude-sonnet 模型', expectedPacks: ['settings-pack'], tag: 'settings' },
 
   // ── plan-pack ──────────────────────────────────────────────────────
   { id: 32, input: '帮我创建一个明天下午 3 点的会议', expectedPacks: ['plan-pack'], tag: 'plan' },

@@ -3,7 +3,6 @@ import {
   calendarEventSchema,
   healthStatusSchema,
   orchestrationSchema,
-  publicAppearanceThemesSchema,
   researchStateSchema,
   runtimeEventSchema,
   scheduledTaskSchema,
@@ -192,41 +191,5 @@ describe('frontend API contracts', () => {
 
     expect(state.assessments[0].quality.verdict).toBe('good')
     expect(state.rounds[0].succeededEngines).toEqual(['Bing INT'])
-  })
-
-  it('parses appearance theme profiles without binding the new UI to old theme code', () => {
-    const themes = publicAppearanceThemesSchema.parse({
-      schemaVersion: 1,
-      activeProfileId: 'builtin-dark',
-      activeProfile: {
-        id: 'builtin-dark',
-        theme: {
-          schemaVersion: 1,
-          name: '曜石深色',
-          mode: 'dark',
-          scope: 'all',
-          safetyLevel: 'safe',
-          coreTokens: {
-            bg: '#080b0e',
-            surface: '#10171b',
-            fg: '#eef5f7',
-            accent: '#26d9d0',
-            success: '#4ade80',
-            danger: '#ff6b6b',
-          },
-          tokens: { accentRing: '#26d9d0' },
-        },
-        review: { passed: true, safetyLevel: 'safe', blockingIssues: [], warnings: [] },
-        createdAt: 1,
-        updatedAt: 2,
-        source: 'builtin',
-      },
-      applyHistory: [{ profileId: 'builtin-dark', appliedAt: 2 }],
-      profiles: [],
-    })
-
-    expect(themes.activeProfile?.theme.name).toBe('曜石深色')
-    expect(themes.activeProfile?.theme.tokens).toMatchObject({ accentRing: '#26d9d0' })
-    expect(themes.applyHistory[0].profileId).toBe('builtin-dark')
   })
 })

@@ -28,8 +28,6 @@ const readOnlyApiChecks = [
   '/api/wiki/pages',
   '/api/pkm/summary',
   '/api/output-profiles',
-  '/api/appearance/themes',
-  '/api/updates/status',
   '/api/websearch/engines',
   '/api/skills',
   '/api/sql/datasources',

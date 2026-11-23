@@ -1,5 +1,5 @@
 import { HttpError } from '../../http-error.js'
-import { getSettings, resolveLlmConfigForTask } from '../settings/settings.service.js'
+import { getSettings } from '../settings/settings.service.js'
 import { chatCompletion } from './llm.client.js'
 import {
   backupChatHistory,
@@ -76,7 +76,7 @@ async function summarizeChunk(
   total: number,
 ) {
   const settings = await getSettings()
-  const llm = resolveLlmConfigForTask(settings.llm, 'summarization')
+  const llm = settings.llm
   const response = await chatCompletion(
     llm,
     [
@@ -102,7 +102,7 @@ async function summarizeChunk(
       },
     ],
     [],
-    { providerCachingEnabled: settings.agent.providerCachingEnabled },
+    { providerCachingEnabled: true },
   )
 
   const summary = response.content.trim()
@@ -120,7 +120,7 @@ async function summarizeFinal(
   chunkSummaries: string[],
 ) {
   const settings = await getSettings()
-  const llm = resolveLlmConfigForTask(settings.llm, 'summarization')
+  const llm = settings.llm
   const response = await chatCompletion(
     llm,
     [
@@ -161,7 +161,7 @@ async function summarizeFinal(
       },
     ],
     [],
-    { providerCachingEnabled: settings.agent.providerCachingEnabled },
+    { providerCachingEnabled: true },
   )
 
   const summary = response.content.trim()

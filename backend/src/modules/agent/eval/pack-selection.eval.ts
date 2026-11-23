@@ -18,7 +18,7 @@
 import { PACK_SELECTION_FIXTURES, type PackSelectionCase } from './pack-selection.fixtures.js'
 import { buildP0Messages, getContextUpgradeToolDefinition } from '../agent.p0.service.js'
 import { chatCompletion, type LLMConfig, type LLMToolDefinition } from '../llm.client.js'
-import { getSettings, resolveLlmConfigForTask } from '../../settings/settings.service.js'
+import { getSettings } from '../../settings/settings.service.js'
 import type { AgentCheckpoint } from '../agent.runtime.types.js'
 import { REQUEST_CONTEXT_UPGRADE_TOOL } from '../agent.upgrade.service.js'
 
@@ -90,7 +90,7 @@ async function resolveLlmConfig(): Promise<LLMConfig> {
   }
   // Otherwise read from settings (requires running backend context).
   const settings = await getSettings()
-  const base = resolveLlmConfigForTask(settings.llm, 'agent-chat')
+  const base = settings.llm
   if (MODEL_OVERRIDE) return { ...base, modelId: MODEL_OVERRIDE }
   return base
 }

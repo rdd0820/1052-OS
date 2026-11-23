@@ -4,6 +4,7 @@ import path from 'node:path'
 import { config } from '../../config.js'
 import { readJson, writeJson } from '../../storage.js'
 import { stripThinkBlocks } from './agent.context-sanitizer.service.js'
+import { RUNTIME_1052_AUTO_COMPACT_TOKEN_LIMIT } from './1052-context-policy.js'
 import type { ChatHistory, StoredChatMessage, StoredRuntimeTrace } from './agent.types.js'
 
 const FILE = 'chat-history.json'
@@ -82,15 +83,11 @@ async function maybeAutoCompact(messageCount: number, reason: ChatHistorySaveRea
   if (autoCompactRunning) return
 
   try {
-    // Dynamic import to avoid circular dependency
-    const { getSettings } = await import('../settings/settings.service.js')
-    const settings = await getSettings()
-    if (!settings.agent.autoCompactEnabled) return
-    if (messageCount < settings.agent.autoCompactThreshold) return
+    if (messageCount < RUNTIME_1052_AUTO_COMPACT_TOKEN_LIMIT) return
 
     autoCompactRunning = true
     console.log(
-      `[auto-compact] Threshold reached (${messageCount} >= ${settings.agent.autoCompactThreshold}), starting background compaction…`,
+      `[auto-compact] Threshold reached (${messageCount} >= ${RUNTIME_1052_AUTO_COMPACT_TOKEN_LIMIT}), starting background compaction…`,
     )
 
     const { compactChatHistory } = await import('./agent.compaction.service.js')

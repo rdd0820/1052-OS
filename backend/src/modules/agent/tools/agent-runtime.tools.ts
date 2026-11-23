@@ -1,218 +1,117 @@
-import { HttpError } from '../../../http-error.js'
-import {
-  activateLlmProfile,
-  getSettings,
-  resolveLlmConfigForTask,
-  updateLlmTaskRoutes,
-  updateSettings,
-} from '../../settings/settings.service.js'
-import type { LLMTaskKind } from '../../settings/settings.types.js'
+import { HttpError } from "../../../http-error.js";
+import { getSettings, updateSettings } from "../../settings/settings.service.js";
 import {
   shouldUseProviderCaching,
   supportsPromptCacheKey,
   usesPassivePrefixCaching,
-} from '../agent.cache-policy.service.js'
-import type { AgentTool } from '../agent.tool.types.js'
+} from "../agent.cache-policy.service.js";
+import type { AgentTool } from "../agent.tool.types.js";
 
 function providerHost(baseUrl: string) {
   try {
-    return new URL(baseUrl.trim()).hostname.toLowerCase()
+    return new URL(baseUrl.trim()).hostname.toLowerCase();
   } catch {
-    return ''
+    return "";
   }
 }
 
-const LLM_TASKS: LLMTaskKind[] = [
-  'agent-chat',
-  'pdf-to-markdown',
-  'coding',
-  'summarization',
-  'vision',
-]
-
 function assertConfirmed(value: unknown, message: string) {
-  if (value !== true) throw new HttpError(400, message)
+  if (value !== true) throw new HttpError(400, message);
 }
 
 function readString(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function isTimeString(value: string) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 export const agentRuntimeTools: AgentTool[] = [
   {
-    name: 'agent_runtime_status',
+    name: "agent_runtime_status",
     description:
-      'Inspect read-only Agent runtime feature flags and provider cache policy. Does not expose API keys.',
+      "Inspect read-only Agent runtime feature flags and provider cache policy. Does not expose API keys.",
     parameters: {
-      type: 'object',
+      type: "object",
       properties: {},
       additionalProperties: false,
     },
     async execute() {
-      const settings = await getSettings()
-      const chatLlm = resolveLlmConfigForTask(settings.llm, 'agent-chat')
+      const settings = await getSettings();
       return {
         agent: {
-          progressiveDisclosureEnabled: settings.agent.progressiveDisclosureEnabled,
-          providerCachingEnabled: settings.agent.providerCachingEnabled,
-          checkpointEnabled: settings.agent.checkpointEnabled,
-          seedOnResumeEnabled: settings.agent.seedOnResumeEnabled,
-          upgradeDebugEventsEnabled: settings.agent.upgradeDebugEventsEnabled,
+          progressiveDisclosureEnabled: true,
+          providerCachingEnabled: true,
+          checkpointEnabled: true,
+          seedOnResumeEnabled: true,
+          upgradeDebugEventsEnabled: true,
+          permissionProfile: settings.agent.permissionProfile,
           morningBrief: settings.agent.morningBrief,
         },
         llm: {
-          activeProfileId: settings.llm.activeProfileId,
-          routedProfileId: chatLlm.activeProfileId,
-          kind: chatLlm.kind,
-          provider: chatLlm.provider,
-          providerHost: providerHost(chatLlm.baseUrl),
-          modelId: chatLlm.modelId,
-          hasApiKey: chatLlm.apiKey.length > 0,
-          profiles: settings.llm.profiles.map((profile) => ({
-            id: profile.id,
-            name: profile.name,
-            kind: profile.kind,
-            provider: profile.provider,
-            modelId: profile.modelId,
-            providerHost: providerHost(profile.baseUrl),
-            enabled: profile.enabled,
-            detected: profile.detected === true,
-          })),
-          taskRoutes: settings.llm.taskRoutes,
+          apiFormat: settings.llm.apiFormat,
+          providerHost: providerHost(settings.llm.baseUrl),
+          modelId: settings.llm.modelId,
+          hasApiKey: settings.llm.apiKey.length > 0,
         },
         providerCaching: {
-          active: shouldUseProviderCaching(
-            chatLlm,
-            settings.agent.providerCachingEnabled,
-          ),
-          promptCacheKeySupported: supportsPromptCacheKey(chatLlm),
-          passivePrefixCaching: usesPassivePrefixCaching(chatLlm),
+          active: shouldUseProviderCaching(settings.llm, true),
+          promptCacheKeySupported: supportsPromptCacheKey(settings.llm),
+          passivePrefixCaching: usesPassivePrefixCaching(settings.llm),
         },
-      }
+      };
     },
   },
   {
-    name: 'agent_morning_brief_update',
+    name: "agent_morning_brief_update",
     description:
-      'Update the Agent morning brief preference and its managed daily scheduled task. Explain the enabled state and HH:MM Asia/Hong_Kong delivery time before calling. The 1052 runtime requests exact approval under the default profile; danger-full-access may execute directly. This does not send a brief immediately or enable external channel delivery.',
+      "Update the Agent morning brief preference and its managed daily scheduled task. Explain the enabled state and HH:MM Asia/Hong_Kong delivery time before calling. The 1052 runtime requests exact approval under the default profile; danger-full-access may execute directly. This does not send a brief immediately or enable external channel delivery.",
     parameters: {
-      type: 'object',
+      type: "object",
       properties: {
-        enabled: { type: 'boolean', description: 'Whether the daily morning brief is enabled.' },
+        enabled: {
+          type: "boolean",
+          description: "Whether the daily morning brief is enabled.",
+        },
         time: {
-          type: 'string',
-          description: 'Preferred delivery time in 24-hour HH:MM format, Asia/Hong_Kong.',
+          type: "string",
+          description:
+            "Preferred delivery time in 24-hour HH:MM format, Asia/Hong_Kong.",
         },
         confirmed: {
-          type: 'boolean',
-          description: 'Must be true after explicit user confirmation.',
+          type: "boolean",
+          description: "Must be true after explicit user confirmation.",
         },
       },
-      required: ['confirmed'],
+      required: ["confirmed"],
       additionalProperties: false,
     },
     async execute(args) {
-      const input = (args ?? {}) as Record<string, unknown>
-      assertConfirmed(input.confirmed, 'Morning brief settings require explicit confirmation.')
+      const input = (args ?? {}) as Record<string, unknown>;
+      assertConfirmed(
+        input.confirmed,
+        "Morning brief settings require explicit confirmation.",
+      );
 
-      const patch: { enabled?: boolean; time?: string } = {}
-      if (typeof input.enabled === 'boolean') patch.enabled = input.enabled
+      const patch: { enabled?: boolean; time?: string } = {};
+      if (typeof input.enabled === "boolean") patch.enabled = input.enabled;
       if (input.time !== undefined) {
-        const time = readString(input.time)
+        const time = readString(input.time);
         if (!isTimeString(time)) {
-          throw new HttpError(400, 'Morning brief time must use HH:MM format.')
+          throw new HttpError(400, "Morning brief time must use HH:MM format.");
         }
-        patch.time = time
+        patch.time = time;
       }
       if (patch.enabled === undefined && patch.time === undefined) {
-        throw new HttpError(400, 'Nothing to update for morning brief settings.')
+        throw new HttpError(
+          400,
+          "Nothing to update for morning brief settings.",
+        );
       }
 
-      const settings = await updateSettings({ agent: { morningBrief: patch } })
-      return { morningBrief: settings.agent.morningBrief }
+      const settings = await updateSettings({ agent: { morningBrief: patch } });
+      return { morningBrief: settings.agent.morningBrief };
     },
   },
-  {
-    name: 'agent_llm_activate_profile',
-    description:
-      'Switch the active LLM profile. Tell the user which profile will become active before calling. The 1052 runtime requests exact approval under the default profile; danger-full-access may execute directly.',
-    parameters: {
-      type: 'object',
-      properties: {
-        profileId: { type: 'string', description: 'LLM profile id from agent_runtime_status.' },
-        confirmed: {
-          type: 'boolean',
-          description: 'Must be true only after explicit user confirmation.',
-        },
-      },
-      required: ['profileId', 'confirmed'],
-      additionalProperties: false,
-    },
-    async execute(args) {
-      const input = (args ?? {}) as Record<string, unknown>
-      assertConfirmed(
-        input.confirmed,
-        '切换 LLM Profile 前，必须先告知用户目标 Profile 和影响，并等待用户明确确认。',
-      )
-      const profileId = readString(input.profileId)
-      if (!profileId) throw new HttpError(400, 'profileId 必填')
-      return activateLlmProfile(profileId)
-    },
-  },
-  {
-    name: 'agent_llm_set_task_route',
-    description:
-      'Set or clear a task-level LLM route. Tell the user which task will use which profile before calling. The 1052 runtime requests exact approval under the default profile; danger-full-access may execute directly.',
-    parameters: {
-      type: 'object',
-      properties: {
-        task: {
-          type: 'string',
-          enum: LLM_TASKS,
-          description: 'Task route to update.',
-        },
-        profileId: {
-          type: 'string',
-          description: 'Profile id from agent_runtime_status. Leave empty only when clear is true.',
-        },
-        clear: {
-          type: 'boolean',
-          description: 'Clear this task route so it follows the active profile.',
-        },
-        confirmed: {
-          type: 'boolean',
-          description: 'Must be true only after explicit user confirmation.',
-        },
-      },
-      required: ['task', 'confirmed'],
-      additionalProperties: false,
-    },
-    async execute(args) {
-      const input = (args ?? {}) as Record<string, unknown>
-      assertConfirmed(
-        input.confirmed,
-        '修改任务级模型路由前，必须先告知用户目标任务、目标 Profile 和影响，并等待用户明确确认。',
-      )
-      const task = readString(input.task) as LLMTaskKind
-      if (!LLM_TASKS.includes(task)) throw new HttpError(400, '无效的 LLM task')
-
-      const settings = await getSettings()
-      const currentRoutes = settings.llm.taskRoutes.filter((route) => route.task !== task)
-      if (input.clear === true) return updateLlmTaskRoutes(currentRoutes)
-
-      const profileId = readString(input.profileId)
-      if (!profileId) throw new HttpError(400, 'profileId 必填')
-      const profile = settings.llm.profiles.find((item) => item.id === profileId)
-      if (!profile) {
-        throw new HttpError(404, '未找到 LLM profile')
-      }
-      if (!profile.enabled) throw new HttpError(400, 'LLM profile 已停用，不能用于任务路由')
-
-      return updateLlmTaskRoutes([...currentRoutes, { task, profileId }])
-    },
-  },
-]
+];

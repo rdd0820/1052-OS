@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import {
-  appearanceReviewReportSchema,
-  appearanceThemeProfileSchema,
+  agentSettingsSchema,
   calendarEventSchema,
   chatHistorySchema,
   dataSourceSchema,
   healthStatusSchema,
   looseObjectSchema,
+  modelSettingsSchema,
   memorySchema,
   memorySummarySchema,
   noteFileSchema,
@@ -16,7 +16,6 @@ import {
   outputProfileSchema,
   pkmSearchSchema,
   pkmSummarySchema,
-  publicAppearanceThemesSchema,
   researchAssessmentSchema,
   researchClaimReviewSchema,
   researchClaimSchema,
@@ -39,7 +38,6 @@ import {
   storedMessageSchema,
   uapiCatalogSchema,
   uapiItemSchema,
-  updateStatusSchema,
   wikiPageSchema,
   type StoredMessage,
 } from '../contracts/schemas'
@@ -79,37 +77,15 @@ export const agentApi = {
       signal,
     )
   },
-  previewMigration: (sourcePath: string) =>
-    request('/agent/migrations/preview', { method: 'POST', body: { sourcePath }, schema: looseObjectSchema }),
-  runMigration: (sourcePath: string, dryRun = false) =>
-    request('/agent/migrations/run', { method: 'POST', body: { sourcePath, dryRun }, schema: looseObjectSchema }),
 }
 
 export const settingsApi = {
   get: () => request('/settings', { schema: settingsSchema }),
   update: (body: unknown) => request('/settings', { method: 'PUT', body, schema: settingsSchema }),
-  upsertProfile: (profile: unknown, activate = false) =>
-    request('/settings/llm/profiles', { method: 'POST', body: { profile, activate }, schema: settingsSchema }),
-  activateProfile: (id: string) =>
-    request(`/settings/llm/profiles/${encodeURIComponent(id)}/activate`, { method: 'POST', body: {}, schema: settingsSchema }),
-}
-
-export const appearanceApi = {
-  themes: () => request('/appearance/themes', { schema: publicAppearanceThemesSchema }),
-  reviewTheme: (theme: unknown) =>
-    request('/appearance/themes/review', { method: 'POST', body: { theme }, schema: appearanceReviewReportSchema }),
-  createTheme: (theme: unknown) =>
-    request('/appearance/themes', { method: 'POST', body: { theme }, schema: appearanceThemeProfileSchema }),
-  applyTheme: (id: string, allowExperimental = false) =>
-    request(`/appearance/themes/${encodeURIComponent(id)}/apply`, {
-      method: 'POST',
-      body: { confirmed: true, allowExperimental },
-      schema: publicAppearanceThemesSchema,
-    }),
-  resetTheme: () =>
-    request('/appearance/themes/reset', { method: 'POST', body: { confirmed: true }, schema: publicAppearanceThemesSchema }),
-  deleteTheme: (id: string) =>
-    request(`/appearance/themes/${encodeURIComponent(id)}`, { method: 'DELETE', schema: publicAppearanceThemesSchema }),
+  getModels: () => request('/settings/models', { schema: modelSettingsSchema }),
+  updateModels: (body: unknown) => request('/settings/models', { method: 'PUT', body, schema: modelSettingsSchema }),
+  getAgent: () => request('/settings/agent', { schema: agentSettingsSchema }),
+  updateAgent: (body: unknown) => request('/settings/agent', { method: 'PUT', body, schema: agentSettingsSchema }),
 }
 
 export const calendarApi = {
@@ -458,14 +434,6 @@ export const channelsApi = {
   createWecomWebhook: (body: unknown) => request('/channels/wecom/webhooks', { method: 'POST', body, schema: looseObjectSchema }),
   testWecomWebhook: (id: string) =>
     request(`/channels/wecom/webhooks/${encodeURIComponent(id)}/test`, { method: 'POST', body: {}, schema: looseObjectSchema }),
-}
-
-export const updatesApi = {
-  status: () => request('/updates/status', { schema: updateStatusSchema }),
-  check: () => request('/updates/check', { method: 'POST', body: {}, schema: updateStatusSchema }),
-  install: (force = false) => request('/updates/install', { method: 'POST', body: { force }, schema: looseObjectSchema }),
-  run: (id: string) => request(`/updates/runs/${encodeURIComponent(id)}`, { schema: looseObjectSchema }),
-  restart: () => request('/updates/restart', { method: 'POST', body: {}, schema: looseObjectSchema }),
 }
 
 export const contractFixtures = {

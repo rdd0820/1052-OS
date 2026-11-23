@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { resolveLlmConfigForTask } from '../settings/settings.service.js'
 import { safeSliceMessages } from './agent.context-sanitizer.service.js'
 import type { TokenUsage } from './agent.types.js'
 import type { Runtime1052SessionState } from './1052-context-runtime.js'
@@ -114,7 +113,7 @@ async function defaultSummarizer(
   request: Runtime1052CompactionRequest,
   state: Runtime1052SessionState,
 ): Promise<Runtime1052CompactionSummary> {
-  const llm = resolveLlmConfigForTask(state.settings.llm, 'summarization')
+  const llm = state.settings.llm
   const response = await chatCompletion(
     llm,
     [
@@ -139,7 +138,7 @@ async function defaultSummarizer(
     [],
     {
       abortSignal: state.options.abortSignal,
-      providerCachingEnabled: state.settings.agent.providerCachingEnabled,
+      providerCachingEnabled: true,
     },
   )
   const summary = response.content.trim()
@@ -225,7 +224,7 @@ export async function compactRuntime1052Conversation(
   dependencies: { summarize?: Runtime1052CompactionSummarizer } = {},
 ): Promise<Runtime1052CompactionResult> {
   const beforeMessages = state.conversation.length
-  const policy = resolveRuntime1052ContextPolicy(state.settings?.agent)
+  const policy = resolveRuntime1052ContextPolicy()
   const beforeTokens = estimateConversationTokens(state.conversation)
   const tokenLimitReached =
     policy.autoCompactEnabled && beforeTokens >= policy.compactTokenLimit

@@ -8,26 +8,24 @@ vi.mock('../../agent/llm.client.js', () => ({
 // Mock settings service
 vi.mock('../../settings/settings.service.js', () => ({
   getSettings: vi.fn(),
-  resolveLlmConfigForTask: vi.fn(),
 }))
 
 import { chatCompletion } from '../../agent/llm.client.js'
-import { getSettings, resolveLlmConfigForTask } from '../../settings/settings.service.js'
+import { getSettings } from '../../settings/settings.service.js'
 import { suggestPageIndexing, batchSuggestIndexing } from '../pkm.ai.js'
 
 const mockChatCompletion = vi.mocked(chatCompletion)
 const mockGetSettings = vi.mocked(getSettings)
-const mockResolveLlmConfigForTask = vi.mocked(resolveLlmConfigForTask)
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockGetSettings.mockResolvedValue({ llm: {} } as any)
-  mockResolveLlmConfigForTask.mockReturnValue({
-    baseUrl: 'https://api.example.com',
-    modelId: 'test-model',
-    apiKey: 'test-key',
-    kind: 'fast',
-    provider: 'openai',
+  mockGetSettings.mockResolvedValue({
+    llm: {
+      baseUrl: 'https://api.example.com',
+      modelId: 'test-model',
+      apiKey: 'test-key',
+      apiFormat: 'openai-compatible',
+    },
   } as any)
 })
 

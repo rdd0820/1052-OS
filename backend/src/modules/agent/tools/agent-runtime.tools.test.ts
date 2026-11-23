@@ -30,40 +30,6 @@ function toolByName(tools: AgentTool[], name: string) {
   return tool
 }
 
-async function seedProfiles(settingsService: typeof import('../../settings/settings.service.js')) {
-  await settingsService.upsertLlmProfile(
-    {
-      id: 'cloud-default',
-      name: 'Cloud default',
-      kind: 'cloud',
-      provider: 'openai-compatible',
-      baseUrl: 'https://api.openai.com/v1',
-      modelId: 'gpt-4.1-mini',
-      apiKey: 'cloud-key',
-      enabled: true,
-    },
-    { activate: true },
-  )
-  await settingsService.upsertLlmProfile({
-    id: 'local-pdf',
-    name: 'Local PDF',
-    kind: 'local',
-    provider: 'ollama',
-    baseUrl: 'http://127.0.0.1:11434/v1',
-    modelId: 'qwen2.5',
-    enabled: true,
-  })
-  await settingsService.upsertLlmProfile({
-    id: 'disabled-local',
-    name: 'Disabled local',
-    kind: 'local',
-    provider: 'ollama',
-    baseUrl: 'http://127.0.0.1:11434/v1',
-    modelId: 'disabled',
-    enabled: false,
-  })
-}
-
 describe('agent llm settings tools', () => {
   it('updates morning brief preferences with confirmation and exposes them in runtime status', async () => {
     const { settingsService, toolModule } = await loadRuntimeToolModules()
@@ -94,66 +60,8 @@ describe('agent llm settings tools', () => {
     expect(runtime.agent?.morningBrief).toEqual({ enabled: false, time: '08:10' })
   })
 
-  it('requires explicit confirmation before changing llm settings', async () => {
-    const { settingsService, toolModule } = await loadRuntimeToolModules()
-    await seedProfiles(settingsService)
-
-    const activate = toolByName(toolModule.agentRuntimeTools, 'agent_llm_activate_profile')
-    const route = toolByName(toolModule.agentRuntimeTools, 'agent_llm_set_task_route')
-
-    await expect(activate.execute({ profileId: 'local-pdf' })).rejects.toThrow('明确确认')
-    await expect(
-      route.execute({ task: 'pdf-to-markdown', profileId: 'local-pdf' }),
-    ).rejects.toThrow('明确确认')
-  })
-
-  it('rejects unknown and disabled profiles', async () => {
-    const { settingsService, toolModule } = await loadRuntimeToolModules()
-    await seedProfiles(settingsService)
-
-    const activate = toolByName(toolModule.agentRuntimeTools, 'agent_llm_activate_profile')
-    const route = toolByName(toolModule.agentRuntimeTools, 'agent_llm_set_task_route')
-
-    await expect(
-      activate.execute({ profileId: 'missing-profile', confirmed: true }),
-    ).rejects.toThrow('未找到 LLM profile')
-    await expect(
-      activate.execute({ profileId: 'disabled-local', confirmed: true }),
-    ).rejects.toThrow('已停用')
-    await expect(
-      route.execute({
-        task: 'pdf-to-markdown',
-        profileId: 'disabled-local',
-        confirmed: true,
-      }),
-    ).rejects.toThrow('已停用')
-  })
-
-  it('sets and clears task-level routes', async () => {
-    const { settingsService, toolModule } = await loadRuntimeToolModules()
-    await seedProfiles(settingsService)
-    const route = toolByName(toolModule.agentRuntimeTools, 'agent_llm_set_task_route')
-
-    await route.execute({
-      task: 'pdf-to-markdown',
-      profileId: 'local-pdf',
-      confirmed: true,
-    })
-    expect((await settingsService.getSettings()).llm.taskRoutes).toEqual([
-      { task: 'pdf-to-markdown', profileId: 'local-pdf' },
-    ])
-
-    await route.execute({
-      task: 'pdf-to-markdown',
-      clear: true,
-      confirmed: true,
-    })
-    expect((await settingsService.getSettings()).llm.taskRoutes).toEqual([])
-  })
-
   it('honors danger-full-access confirmation injection in the 1052 executor', async () => {
     const { settingsService, agentToolService } = await loadRuntimeToolModules()
-    await seedProfiles(settingsService)
     await settingsService.updateSettings({
       agent: { permissionProfile: 'danger-full-access' },
     })
@@ -162,18 +70,20 @@ describe('agent llm settings tools', () => {
       id: 'call-1',
       type: 'function',
       function: {
-        name: 'agent_llm_activate_profile',
-        arguments: JSON.stringify({ profileId: 'local-pdf' }),
+        name: 'agent_morning_brief_update',
+        arguments: JSON.stringify({ enabled: true, time: '08:10' }),
       },
     })
 
-    expect(message.content).toContain('"ok": true')
-    expect((await settingsService.getSettings()).llm.activeProfileId).toBe('local-pdf')
+    expect(message.content).toContain('08:10')
+    expect((await settingsService.getSettings()).agent.morningBrief).toEqual({
+      enabled: true,
+      time: '08:10',
+    })
   })
 
   it('does not let model arguments bypass default runtime approval', async () => {
     const { settingsService, agentToolService } = await loadRuntimeToolModules()
-    await seedProfiles(settingsService)
     await settingsService.updateSettings({
       agent: { permissionProfile: 'default' },
     })
@@ -182,18 +92,17 @@ describe('agent llm settings tools', () => {
       id: 'call-unapproved',
       type: 'function',
       function: {
-        name: 'agent_llm_activate_profile',
-        arguments: JSON.stringify({ profileId: 'local-pdf', confirmed: true }),
+        name: 'agent_morning_brief_update',
+        arguments: JSON.stringify({ enabled: true, time: '08:10', confirmed: true }),
       },
     })
 
     expect(message.content).toContain('requires approval from the 1052 runtime')
-    expect((await settingsService.getSettings()).llm.activeProfileId).not.toBe('local-pdf')
+    expect((await settingsService.getSettings()).agent.morningBrief.enabled).toBe(false)
   })
 
   it('blocks side-effecting tools in the read-only permission profile', async () => {
     const { settingsService, agentToolService } = await loadRuntimeToolModules()
-    await seedProfiles(settingsService)
     await settingsService.updateSettings({
       agent: { permissionProfile: 'read-only' },
     })
@@ -202,8 +111,8 @@ describe('agent llm settings tools', () => {
       id: 'call-read-only',
       type: 'function',
       function: {
-        name: 'agent_llm_activate_profile',
-        arguments: JSON.stringify({ profileId: 'local-pdf', confirmed: true }),
+        name: 'agent_morning_brief_update',
+        arguments: JSON.stringify({ enabled: true, time: '08:10', confirmed: true }),
       },
     })
 

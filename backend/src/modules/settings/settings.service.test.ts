@@ -28,18 +28,6 @@ describe('settings llm profiles', () => {
     expect((await service.getSettings()).agent.permissionProfile).toBe('read-only')
   })
 
-  it('migrates the legacy fullAccess flag to a permission profile', async () => {
-    await fs.writeFile(
-      path.join(tempDir, 'settings.json'),
-      JSON.stringify({ agent: { fullAccess: true } }),
-      'utf-8',
-    )
-    const service = await import('./settings.service.js')
-
-    expect((await service.getSettings()).agent.permissionProfile).toBe('danger-full-access')
-    expect((await service.getPublicSettings()).agent).not.toHaveProperty('fullAccess')
-  })
-
   it('defaults and normalizes morning brief settings', async () => {
     const service = await import('./settings.service.js')
     const calendar = await import('../calendar/calendar.schedule.service.js')
@@ -192,7 +180,7 @@ describe('settings llm profiles', () => {
     expect(tasks[0]?.prompt).toContain('intel-center')
   })
 
-  it('migrates legacy llm config into an active cloud profile', async () => {
+  it('reads the single configured model and ignores saved profiles', async () => {
     await fs.writeFile(
       path.join(tempDir, 'settings.json'),
       JSON.stringify({
@@ -200,6 +188,15 @@ describe('settings llm profiles', () => {
           baseUrl: 'https://api.openai.com/v1',
           modelId: 'gpt-4.1-mini',
           apiKey: 'cloud-key',
+          profiles: [
+            {
+              id: 'other',
+              baseUrl: 'https://api.deepseek.com',
+              modelId: 'deepseek-flash',
+              apiKey: 'other-key',
+            },
+          ],
+          activeProfileId: 'other',
         },
       }),
       'utf-8',
@@ -209,143 +206,146 @@ describe('settings llm profiles', () => {
     const settings = await service.getSettings()
     const publicSettings = await service.getPublicSettings()
 
-    expect(settings.llm.activeProfileId).toBeTruthy()
-    expect(settings.llm.profiles).toHaveLength(1)
-    expect(settings.llm.profiles[0]).toMatchObject({
-      kind: 'cloud',
-      provider: 'openai-compatible',
+    expect(settings.llm).toEqual({
+      apiFormat: 'openai-compatible',
       baseUrl: 'https://api.openai.com/v1',
       modelId: 'gpt-4.1-mini',
       apiKey: 'cloud-key',
     })
-    expect(publicSettings.llm.profiles[0].hasApiKey).toBe(true)
-    expect('apiKey' in (publicSettings.llm.profiles[0] as Record<string, unknown>)).toBe(false)
+    expect(settings.llm).not.toHaveProperty('profiles')
+    expect(publicSettings.llm.hasApiKey).toBe(true)
+    expect(publicSettings.llm.apiKey).toBe('cloud-key')
+    expect(publicSettings.llm).not.toHaveProperty('profiles')
   })
 
-  it('can save and activate a local profile without leaking a cloud api key', async () => {
+  it('stores and returns an API key exactly as submitted, including an empty value', async () => {
     const service = await import('./settings.service.js')
+    const submitted = 'sk-exact value'
 
-    await service.updateSettings({
+    const saved = await service.updateSettings({
       llm: {
-        baseUrl: 'https://api.openai.com/v1',
-        modelId: 'gpt-4.1-mini',
-        apiKey: 'cloud-key',
+        baseUrl: 'https://api.deepseek.com',
+        modelId: 'deepseek-flash',
+        apiKey: submitted,
       },
+      imageGeneration: { apiKey: submitted },
     })
-    await service.upsertLlmProfile(
-      {
-        id: 'ollama-llama3',
-        name: 'Ollama llama3',
-        kind: 'local',
-        provider: 'ollama',
-        baseUrl: 'http://127.0.0.1:11434/v1',
-        modelId: 'llama3',
-        enabled: true,
-      },
-      { activate: true },
-    )
+    expect(saved.llm.apiKey).toBe(submitted)
+    expect(saved.imageGeneration.apiKey).toBe(submitted)
 
-    const settings = await service.getSettings()
-
-    expect(settings.llm.activeProfileId).toBe('ollama-llama3')
-    expect(settings.llm.kind).toBe('local')
-    expect(settings.llm.provider).toBe('ollama')
-    expect(settings.llm.modelId).toBe('llama3')
-    expect(settings.llm.apiKey).toBe('')
-  })
-
-  it('resolves task routes before falling back to the active profile', async () => {
-    const service = await import('./settings.service.js')
-
-    await service.upsertLlmProfile(
-      {
-        id: 'cloud-default',
-        name: 'Cloud default',
-        kind: 'cloud',
-        provider: 'openai-compatible',
-        baseUrl: 'https://api.openai.com/v1',
-        modelId: 'gpt-4.1-mini',
-        apiKey: 'cloud-key',
-        enabled: true,
-      },
-      { activate: true },
-    )
-    await service.upsertLlmProfile({
-      id: 'local-pdf',
-      name: 'Local PDF',
-      kind: 'local',
-      provider: 'ollama',
-      baseUrl: 'http://127.0.0.1:11434/v1',
-      modelId: 'qwen2.5',
-      enabled: true,
+    const cleared = await service.updateSettings({
+      llm: { apiKey: '' },
+      imageGeneration: { apiKey: '' },
     })
-    await service.updateLlmTaskRoutes([{ task: 'pdf-to-markdown', profileId: 'local-pdf' }])
-
-    const settings = await service.getSettings()
-
-    expect(service.resolveLlmConfigForTask(settings.llm, 'pdf-to-markdown').modelId).toBe('qwen2.5')
-    expect(service.resolveLlmConfigForTask(settings.llm, 'agent-chat').modelId).toBe(
-      'gpt-4.1-mini',
-    )
+    expect(cleared.llm.apiKey).toBe('')
+    expect(cleared.imageGeneration.apiKey).toBe('')
+    expect((await service.getSettings()).llm.apiKey).toBe('')
   })
 })
 
-describe('settings appearance reduceMotion + effects (P0)', () => {
-  it('omits reduceMotion and effects in default settings (backward-compatible with old settings.json)', async () => {
-    const service = await import('./settings.service.js')
-    const settings = await service.getSettings()
-    expect(settings.appearance.theme).toBe('dark')
-    expect(settings.appearance.reduceMotion).toBeUndefined()
-    expect(settings.appearance.effects).toBeUndefined()
-  })
-
-  it('persists reduceMotion = true / false / null via updateSettings', async () => {
-    const service = await import('./settings.service.js')
-    for (const value of [true, false, null] as const) {
-      await service.updateSettings({ appearance: { reduceMotion: value } })
-      const next = await service.getSettings()
-      expect(next.appearance.reduceMotion).toBe(value)
-    }
-  })
-
-  it('normalizes invalid reduceMotion (string / number) to undefined (omitted)', async () => {
+describe('model settings projection', () => {
+  it('returns only llm, image generation, and ocr', async () => {
     const service = await import('./settings.service.js')
     await service.updateSettings({
-      appearance: { reduceMotion: 'yes' as unknown as boolean },
+      agent: { userPrompt: 'keep-me' },
+      uapis: { apiKey: 'uapis-key' },
     })
-    const next = await service.getSettings()
-    expect(next.appearance.reduceMotion).toBeUndefined()
+
+    const models = await service.getModelSettings()
+
+    expect(Object.keys(models).sort()).toEqual(['imageGeneration', 'llm', 'ocr'])
+    expect(models.ocr.hasCredential).toBe(true)
   })
 
-  it('persists nested effects.water.enabled with intensity / hoverRipple / clickWave', async () => {
+  it('sets ocr.hasCredential from the active provider', async () => {
+    const service = await import('./settings.service.js')
+
+    const uapisMode = await service.updateModelSettings({
+      ocr: { provider: 'uapis', customApiKey: '' },
+    })
+    expect(uapisMode.ocr.hasCredential).toBe(false)
+
+    await service.updateSettings({ uapis: { apiKey: 'uapis-key' } })
+    expect((await service.getModelSettings()).ocr.hasCredential).toBe(true)
+
+    const customMode = await service.updateModelSettings({
+      ocr: { provider: 'custom-model', customApiKey: 'ocr-key' },
+    })
+    expect(customMode.ocr.hasCredential).toBe(true)
+
+    const clearedCustom = await service.updateModelSettings({
+      ocr: { provider: 'custom-model', customApiKey: '' },
+    })
+    expect(clearedCustom.ocr.hasCredential).toBe(false)
+  })
+
+  it('keeps agent settings when a model patch is saved', async () => {
     const service = await import('./settings.service.js')
     await service.updateSettings({
-      appearance: {
-        effects: {
-          water: { enabled: true, intensity: 'medium', hoverRipple: true, clickWave: false },
-        },
+      agent: { userPrompt: 'keep-me' },
+      llm: {
+        baseUrl: 'https://api.deepseek.com',
+        modelId: 'deepseek-flash',
+        apiKey: 'sk-keep',
       },
     })
-    const next = await service.getSettings()
-    expect(next.appearance.effects?.water).toEqual({
-      enabled: true,
-      intensity: 'medium',
-      hoverRipple: true,
-      clickWave: false,
+
+    const models = await service.updateModelSettings({
+      llm: { modelId: 'deepseek-v4' },
     })
+
+    expect(models).not.toHaveProperty('agent')
+    expect(models.llm.modelId).toBe('deepseek-v4')
+    expect(models.llm.apiKey).toBe('sk-keep')
+    const stored = await service.getSettings()
+    expect(stored).not.toHaveProperty('appearance')
+    expect(stored.agent.userPrompt).toBe('keep-me')
   })
 
-  it('drops invalid water.intensity values', async () => {
+  it('stores an empty API key submitted through the model resource', async () => {
+    const service = await import('./settings.service.js')
+    await service.updateModelSettings({
+      llm: {
+        baseUrl: 'https://api.deepseek.com',
+        modelId: 'deepseek-flash',
+        apiKey: 'sk-exact value',
+      },
+      imageGeneration: { apiKey: 'image-key' },
+    })
+
+    const cleared = await service.updateModelSettings({
+      llm: { apiKey: '' },
+      imageGeneration: { apiKey: '' },
+    })
+
+    expect(cleared.llm.apiKey).toBe('')
+    expect(cleared.imageGeneration.apiKey).toBe('')
+    expect(cleared).not.toHaveProperty('uapis')
+  })
+})
+
+describe('agent settings projection', () => {
+  it('returns and updates only agent settings', async () => {
     const service = await import('./settings.service.js')
     await service.updateSettings({
-      appearance: {
-        effects: {
-          water: { enabled: false, intensity: 'extreme' as unknown as 'low' },
-        },
+      llm: {
+        baseUrl: 'https://api.deepseek.com',
+        modelId: 'deepseek-flash',
+        apiKey: 'sk-keep',
       },
+      agent: { userPrompt: 'keep-me', permissionProfile: 'read-only' },
     })
-    const next = await service.getSettings()
-    expect(next.appearance.effects?.water?.enabled).toBe(false)
-    expect(next.appearance.effects?.water?.intensity).toBeUndefined()
+
+    const agent = await service.getAgentSettings()
+    expect(agent.userPrompt).toBe('keep-me')
+    expect(agent.permissionProfile).toBe('read-only')
+    expect(agent.morningBrief.time).toBe('09:30')
+    expect(Object.keys(agent).sort()).toEqual(['morningBrief', 'permissionProfile', 'userPrompt'])
+
+    const updated = await service.updateAgentSettings({ userPrompt: 'next-prompt' })
+    expect(updated.userPrompt).toBe('next-prompt')
+    expect(updated.permissionProfile).toBe('read-only')
+    expect((await service.getSettings()).llm.modelId).toBe('deepseek-flash')
+    expect((await service.getSettings()).llm.apiKey).toBe('sk-keep')
   })
 })

@@ -50,8 +50,8 @@ describe('1052 tool runtime metadata', () => {
   })
 
   it('auto-confirms only confirmation-gated tools under never-ask permissions', () => {
-    const defaultProfile = resolve1052PermissionProfile({ fullAccess: false })
-    const fullAccessProfile = resolve1052PermissionProfile({ fullAccess: true })
+    const defaultProfile = resolve1052PermissionProfile({ permissionProfile: 'default' })
+    const fullAccessProfile = resolve1052PermissionProfile({ permissionProfile: 'danger-full-access' })
 
     expect(canAutoConfirm1052Tool('filesystem_write_file', defaultProfile)).toBe(false)
     expect(canAutoConfirm1052Tool('filesystem_write_file', fullAccessProfile)).toBe(true)

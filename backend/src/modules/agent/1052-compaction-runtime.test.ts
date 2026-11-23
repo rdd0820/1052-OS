@@ -16,20 +16,14 @@ function conversation(count: number): LLMConversationMessage[] {
 function tokenHeavyConversation(count: number): LLMConversationMessage[] {
   return Array.from({ length: count }, (_, index) => ({
     role: index % 2 === 0 ? ('user' as const) : ('assistant' as const),
-    content: `message ${index + 1} ${'token-heavy context '.repeat(700)}`,
+    content: `message ${index + 1} ${'token-heavy context '.repeat(2000)}`,
   }))
 }
 
-function state(messages: LLMConversationMessage[], enabled = true): Runtime1052SessionState {
+function state(messages: LLMConversationMessage[]): Runtime1052SessionState {
   return {
     conversation: messages,
     options: {},
-    settings: {
-      agent: {
-        autoCompactEnabled: enabled,
-        autoCompactThreshold: 20_000,
-      },
-    },
   } as unknown as Runtime1052SessionState
 }
 

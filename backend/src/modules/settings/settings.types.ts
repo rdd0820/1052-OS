@@ -1,195 +1,126 @@
-export type LLMProfileKind = 'cloud' | 'local'
+/**
+ * 设置类型分两层：
+ * - `Settings` 和各 `*Settings` 写入 data/settings.json，后端服务直接读取。
+ * - `PublicSettings` 和 `ModelSettings` 是接口返回给页面的投影，只保留页面会读的字段。
+ */
 
-export type LLMApiFormat =
-  | 'openai-compatible'
-  | 'anthropic'
-  | 'gemini'
+/** 对话请求协议，决定走 OpenAI 兼容、Anthropic 还是 Gemini 适配器。 */
+export type LLMApiFormat = "openai-compatible" | "anthropic" | "gemini";
 
-export type LLMProviderKind =
-  | 'openai-compatible'
-  | 'ollama'
-  | 'lm-studio'
-  | 'localai'
-  | 'custom'
-
-export type LLMTaskKind =
-  | 'agent-chat'
-  | 'pdf-to-markdown'
-  | 'coding'
-  | 'summarization'
-  | 'vision'
-  | 'pkm-index'
-
-export type LLMProfile = {
-  id: string
-  name: string
-  kind: LLMProfileKind
-  provider: LLMProviderKind
-  apiFormat: LLMApiFormat
-  baseUrl: string
-  modelId: string
-  apiKey: string
-  enabled: boolean
-  detected?: boolean
-  source?: string
-  lastSeenAt?: number
-}
-
-export type PublicLLMProfile = Omit<LLMProfile, 'apiKey'> & {
-  hasApiKey: boolean
-  apiKeyMask: string
-}
-
-export type LLMTaskRoute = {
-  task: LLMTaskKind
-  profileId: string
-}
-
+/** 页面上配置的唯一主模型。对话、摘要和索引都直接使用这一份。 */
 export type LLMSettings = {
-  baseUrl: string
-  modelId: string
-  apiKey: string
-  kind: LLMProfileKind
-  provider: LLMProviderKind
-  apiFormat: LLMApiFormat
-  activeProfileId: string
-  profiles: LLMProfile[]
-  taskRoutes: LLMTaskRoute[]
-}
+  baseUrl: string;
+  modelId: string;
+  apiKey: string;
+  apiFormat: LLMApiFormat;
+};
 
+/**
+ * 图像生成配置。页面只编辑地址、模型 ID 和密钥。
+ * 协议、尺寸、质量和输出参数由生图服务读取。
+ */
 export type ImageGenerationSettings = {
-  apiFormat: 'openai-compatible' | 'gemini-native'
-  baseUrl: string
-  modelId: string
-  apiKey: string
-  size: 'auto' | '1024x1024' | '1536x1024' | '1024x1536'
-  quality: 'auto' | 'low' | 'medium' | 'high'
-  background: 'auto' | 'opaque' | 'transparent'
-  outputFormat: 'png' | 'jpeg' | 'webp'
-  outputCompression: number
-}
+  /** OpenAI 图像接口，或 Gemini 原生接口。MiniMax 按地址单独识别。 */
+  apiFormat: "openai-compatible" | "gemini-native";
+  baseUrl: string;
+  modelId: string;
+  apiKey: string;
+  size: "auto" | "1024x1024" | "1536x1024" | "1024x1536";
+  quality: "auto" | "low" | "medium" | "high";
+  background: "auto" | "opaque" | "transparent";
+  outputFormat: "png" | "jpeg" | "webp";
+  outputCompression: number;
+};
 
-export type AppearanceWaterEffectIntensity = 'low' | 'medium' | 'high'
-
-export type AppearanceWaterEffectSettings = {
-  enabled: boolean
-  intensity?: AppearanceWaterEffectIntensity
-  hoverRipple?: boolean
-  clickWave?: boolean
-}
-
-export type AppearanceEffects = {
-  water?: AppearanceWaterEffectSettings
-}
-
-export type AppearanceSettings = {
-  theme: 'dark' | 'light' | 'auto'
-  language: 'zh-CN' | 'en-US'
-  /**
-   * 用户「降低动效」偏好。
-   * - null = 跟随系统 prefers-reduced-motion 检测
-   * - true / false = 用户偏好覆盖系统检测
-   * 与 effects.water.enabled 语义解耦：reduceMotion 控制总体动效偏好，effects.water.enabled 是水波特效本身的高级开关。
-   */
-  reduceMotion?: boolean | null
-  effects?: AppearanceEffects
-}
-
-export type AgentPermissionProfile1052 = 'read-only' | 'default' | 'danger-full-access'
-
-export type AgentSettings = {
-  streaming: boolean
-  userPrompt: string
-  permissionProfile: AgentPermissionProfile1052
-  contextMessageLimit: number
-  progressiveDisclosureEnabled: boolean
-  providerCachingEnabled: boolean
-  checkpointEnabled: boolean
-  seedOnResumeEnabled: boolean
-  upgradeDebugEventsEnabled: boolean
-  autoCompactEnabled: boolean
-  autoCompactThreshold: number
-  morningBrief: MorningBriefSettings
-}
+export type AgentPermissionProfile =
+  | "read-only"
+  | "default"
+  | "danger-full-access";
 
 export type MorningBriefSettings = {
-  enabled: boolean
-  time: string
-}
+  enabled: boolean;
+  /** HH:MM，按 Asia/Hong_Kong 解释。 */
+  time: string;
+};
 
+/** Agent 可配置项。流式输出、检查点、缓存和自动压缩始终开启，不写入设置。 */
+export type AgentSettings = {
+  userPrompt: string;
+  permissionProfile: AgentPermissionProfile;
+  morningBrief: MorningBriefSettings;
+};
+
+/**
+ * OCR 配置。
+ * provider 为 uapis 时使用 UapisSettings.apiKey；
+ * 为 custom-model 时使用下面的自定义地址、模型和密钥。
+ */
 export type OcrSettings = {
-  provider: 'uapis' | 'custom-model'
-  customBaseUrl: string
-  customModelId: string
-  customApiKey: string
-}
+  provider: "uapis" | "custom-model";
+  customBaseUrl: string;
+  customModelId: string;
+  /** 自定义模型的 Bearer 令牌。模型页没有输入框，保存时省略则保留原值。 */
+  customApiKey: string;
+};
 
+/** UAPIs 平台密钥。为空时走免费 IP 额度。 */
 export type UapisSettings = {
-  apiKey: string
-}
+  apiKey: string;
+};
 
+/** data/settings.json 的完整结构。 */
 export type Settings = {
-  llm: LLMSettings
-  imageGeneration: ImageGenerationSettings
-  ocr: OcrSettings
-  appearance: AppearanceSettings
-  agent: AgentSettings
-  uapis: UapisSettings
-}
+  llm: LLMSettings;
+  imageGeneration: ImageGenerationSettings;
+  ocr: OcrSettings;
+  agent: AgentSettings;
+  uapis: UapisSettings;
+};
 
-/** API key 永不出站,用 hasApiKey + 脱敏预览替代 */
 export type PublicSettings = {
   llm: {
-    baseUrl: string
-    modelId: string
-    kind: LLMProfileKind
-    provider: LLMProviderKind
-    apiFormat: LLMApiFormat
-    activeProfileId: string
-    profiles: PublicLLMProfile[]
-    taskRoutes: LLMTaskRoute[]
-    hasApiKey: boolean
-    apiKeyMask: string
-  }
+    baseUrl: string;
+    modelId: string;
+    apiKey: string;
+    apiFormat: LLMApiFormat;
+    /** 主模型凭证徽章。由 apiKey 是否为空算出。 */
+    hasApiKey: boolean;
+  };
+  /** 不含协议、尺寸和质量，那些字段只给生图服务用。 */
   imageGeneration: {
-    apiFormat: ImageGenerationSettings['apiFormat']
-    baseUrl: string
-    modelId: string
-    size: ImageGenerationSettings['size']
-    quality: ImageGenerationSettings['quality']
-    background: ImageGenerationSettings['background']
-    outputFormat: ImageGenerationSettings['outputFormat']
-    outputCompression: number
-    hasApiKey: boolean
-    apiKeyMask: string
-  }
-  appearance: AppearanceSettings
-  agent: AgentSettings
+    baseUrl: string;
+    modelId: string;
+    apiKey: string;
+  };
+  agent: AgentSettings;
+  /** 不含 customApiKey。 */
   ocr: {
-    provider: OcrSettings['provider']
-    customBaseUrl: string
-    customModelId: string
-    hasCustomApiKey: boolean
-    customApiKeyMask: string
-  }
-  uapis: {
-    hasApiKey: boolean
-    apiKeyMask: string
-    mode: 'free-ip-quota' | 'api-key'
-    home: string
-    console: string
-    anonymousMonthlyCredits: number
-    apiKeyMonthlyCredits: number
-  }
-}
+    provider: OcrSettings["provider"];
+    customBaseUrl: string;
+    customModelId: string;
+  };
+};
 
+/** GET/PUT /api/settings/models 使用的模型页投影。 */
+export type ModelSettings = {
+  llm: PublicSettings["llm"];
+  imageGeneration: PublicSettings["imageGeneration"];
+  ocr: PublicSettings["ocr"] & {
+    /** 自定义模型看 customApiKey，其余看 uapis.apiKey。 */
+    hasCredential: boolean;
+  };
+};
+
+/**
+ * 部分更新。
+ * 密钥字段传空字符串会清空；省略该字段则保留原值。
+ */
 export type SettingsPatch = {
-  llm?: Partial<LLMSettings>
-  imageGeneration?: Partial<ImageGenerationSettings>
-  ocr?: Partial<OcrSettings>
-  appearance?: Partial<AppearanceSettings>
-  agent?: Partial<Omit<AgentSettings, 'morningBrief'>> & {
-    morningBrief?: Partial<MorningBriefSettings>
-  }
-  uapis?: Partial<UapisSettings>
-}
+  llm?: Partial<LLMSettings>;
+  imageGeneration?: Partial<ImageGenerationSettings>;
+  ocr?: Partial<OcrSettings>;
+  agent?: Partial<Omit<AgentSettings, "morningBrief">> & {
+    morningBrief?: Partial<MorningBriefSettings>;
+  };
+  uapis?: Partial<UapisSettings>;
+};

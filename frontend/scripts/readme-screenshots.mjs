@@ -17,70 +17,20 @@ const today = new Date().toISOString().slice(0, 10)
 
 const settings = {
   llm: {
-    baseUrl: 'http://localhost:11434/v1',
-    modelId: 'gpt-5-local',
-    kind: 'local',
-    provider: 'local',
+    baseUrl: 'https://api.deepseek.com',
+    modelId: 'deepseek-flash',
     apiFormat: 'openai-compatible',
-    activeProfileId: 'local-main',
-    profiles: [{
-      id: 'local-main',
-      name: '本地主模型',
-      kind: 'local',
-      provider: 'local',
-      apiFormat: 'openai-compatible',
-      baseUrl: 'http://localhost:11434/v1',
-      modelId: 'gpt-5-local',
-      enabled: true,
-      hasApiKey: true,
-      apiKeyMask: 'sk-***',
-    }],
-    taskRoutes: [],
+    apiKey: 'sk-test',
     hasApiKey: true,
-    apiKeyMask: 'sk-***',
   },
-  appearance: { theme: 'dark', language: 'zh-CN', reduceMotion: false },
   agent: {
-    streaming: true,
     userPrompt: '',
     permissionProfile: 'default',
-    contextMessageLimit: 24,
-    progressiveDisclosureEnabled: true,
-    providerCachingEnabled: true,
-    checkpointEnabled: true,
-    seedOnResumeEnabled: true,
-    upgradeDebugEventsEnabled: false,
-    autoCompactEnabled: true,
-    autoCompactThreshold: 80_000,
     morningBrief: { enabled: true, time: '08:30' },
   },
   imageGeneration: {},
   ocr: { provider: 'uapis' },
   uapis: { hasApiKey: false, apiKeyMode: 'free-ip-quota' },
-}
-
-const themeProfile = {
-  id: 'builtin-obsidian',
-  source: 'builtin',
-  createdAt: now - 86400_000,
-  updatedAt: now,
-  theme: {
-    schemaVersion: 1,
-    name: '曜石深色',
-    mode: 'dark',
-    scope: 'all',
-    safetyLevel: 'safe',
-    coreTokens: {
-      bg: '#080b0e',
-      surface: '#10171b',
-      fg: '#eef5f7',
-      accent: '#26d9d0',
-      success: '#4ade80',
-      danger: '#ff6b6b',
-    },
-    tokens: {},
-  },
-  review: { passed: true, safetyLevel: 'safe', blockingIssues: [], warnings: [] },
 }
 
 const sampleEvents = [
@@ -214,9 +164,6 @@ async function installApiMocks(page) {
     if (apiPath === '/agent/history/events') return sse(route, [{ type: 'connected' }])
     if (apiPath === '/agent/history') return json(route, chatHistory)
     if (apiPath === '/settings') return json(route, settings)
-    if (apiPath === '/appearance/themes') {
-      return json(route, { schemaVersion: 1, activeProfileId: themeProfile.id, activeProfile: themeProfile, applyHistory: [], profiles: [themeProfile] })
-    }
     if (apiPath === '/calendar/events') return json(route, sampleEvents)
     if (apiPath === '/calendar/tasks') return json(route, sampleTasks)
     if (apiPath === '/calendar/task-runs') return json(route, [{ id: 'run-1', title: '每日工作摘要', status: 'success', startedAt: now - 3600_000, summary: '已生成今日简报' }])
@@ -238,9 +185,6 @@ async function installApiMocks(page) {
       ])
     }
     if (apiPath === '/health') return json(route, { ok: true, ts: now })
-    if (apiPath === '/updates/status') {
-      return json(route, { mode: 'git', current: { shortCommit: 'local' }, latest: null, updateAvailable: false, canInstall: false, dirty: false, dirtyFiles: [], warnings: [], lastCheckedAt: new Date(now).toISOString() })
-    }
 
     return json(route, {})
   })

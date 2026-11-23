@@ -83,63 +83,54 @@ export const runtimeEventSchema = z
   })
   .passthrough()
 
-const llmProfileSchema = z
+const publicLlmSchema = z
   .object({
-    id: z.string(),
-    name: z.string(),
-    kind: z.enum(['cloud', 'local']),
-    provider: z.string(),
-    apiFormat: z.enum(['openai-compatible', 'anthropic', 'gemini']),
     baseUrl: z.string(),
     modelId: z.string(),
-    enabled: z.boolean(),
+    apiFormat: z.enum(['openai-compatible', 'anthropic', 'gemini']),
+    apiKey: z.string(),
     hasApiKey: z.boolean(),
-    apiKeyMask: z.string(),
+  })
+  .passthrough()
+
+const publicImageGenerationSchema = z
+  .object({
+    baseUrl: z.string(),
+    modelId: z.string(),
+    apiKey: z.string(),
+  })
+  .passthrough()
+
+const publicOcrSchema = z
+  .object({
+    provider: z.enum(['uapis', 'custom-model']),
+    customBaseUrl: z.string(),
+    customModelId: z.string(),
+  })
+  .passthrough()
+
+export const modelSettingsSchema = z
+  .object({
+    llm: publicLlmSchema,
+    imageGeneration: publicImageGenerationSchema,
+    ocr: publicOcrSchema.extend({ hasCredential: z.boolean() }),
+  })
+  .passthrough()
+
+export const agentSettingsSchema = z
+  .object({
+    userPrompt: z.string(),
+    permissionProfile: z.enum(['read-only', 'default', 'danger-full-access']),
+    morningBrief: z.object({ enabled: z.boolean(), time: z.string() }),
   })
   .passthrough()
 
 export const settingsSchema = z
   .object({
-    llm: z
-      .object({
-        baseUrl: z.string(),
-        modelId: z.string(),
-        kind: z.enum(['cloud', 'local']),
-        provider: z.string(),
-        apiFormat: z.enum(['openai-compatible', 'anthropic', 'gemini']),
-        activeProfileId: z.string(),
-        profiles: z.array(llmProfileSchema),
-        taskRoutes: z.array(looseObject),
-        hasApiKey: z.boolean(),
-        apiKeyMask: z.string(),
-      })
-      .passthrough(),
-    appearance: z
-      .object({
-        theme: z.enum(['dark', 'light', 'auto']),
-        language: z.string().optional(),
-        reduceMotion: z.boolean().nullable().optional(),
-      })
-      .passthrough(),
-    agent: z
-      .object({
-        streaming: z.boolean(),
-        userPrompt: z.string(),
-        permissionProfile: z.enum(['read-only', 'default', 'danger-full-access']),
-        contextMessageLimit: z.number(),
-        progressiveDisclosureEnabled: z.boolean(),
-        providerCachingEnabled: z.boolean(),
-        checkpointEnabled: z.boolean(),
-        seedOnResumeEnabled: z.boolean(),
-        upgradeDebugEventsEnabled: z.boolean(),
-        autoCompactEnabled: z.boolean(),
-        autoCompactThreshold: z.number(),
-        morningBrief: z.object({ enabled: z.boolean(), time: z.string() }),
-      })
-      .passthrough(),
+    llm: publicLlmSchema,
+    agent: agentSettingsSchema,
     imageGeneration: looseObject,
     ocr: looseObject,
-    uapis: looseObject,
   })
   .passthrough()
 
@@ -641,73 +632,7 @@ export const researchStateSchema = z
   })
   .passthrough()
 
-export const updateStatusSchema = z
-  .object({
-    mode: z.enum(['git', 'archive']),
-    current: looseObject,
-    latest: looseObject.nullable(),
-    updateAvailable: z.boolean(),
-    canInstall: z.boolean(),
-    dirty: z.boolean(),
-    dirtyFiles: stringArray,
-    warnings: stringArray,
-    lastCheckedAt: z.string(),
-  })
-  .passthrough()
-
 export const healthStatusSchema = z.object({ ok: z.boolean(), ts: z.number() }).passthrough()
-
-export const appearanceReviewIssueSchema = z
-  .object({
-    code: z.string(),
-    path: z.string(),
-    message: z.string(),
-    suggestedFix: z.string(),
-  })
-  .passthrough()
-
-export const appearanceReviewReportSchema = z
-  .object({
-    passed: z.boolean(),
-    safetyLevel: z.enum(['safe', 'experimental', 'rejected']),
-    blockingIssues: z.array(appearanceReviewIssueSchema),
-    warnings: z.array(appearanceReviewIssueSchema),
-  })
-  .passthrough()
-
-export const appearanceThemeSpecSchema = z
-  .object({
-    schemaVersion: z.literal(1),
-    name: z.string(),
-    mode: z.enum(['dark', 'light']),
-    scope: z.enum(['chat', 'workspace', 'brief', 'all']),
-    safetyLevel: z.enum(['safe', 'experimental', 'rejected']),
-    coreTokens: looseObject,
-    tokens: looseObject,
-  })
-  .passthrough()
-
-export const appearanceThemeProfileSchema = z
-  .object({
-    id: z.string(),
-    theme: appearanceThemeSpecSchema,
-    review: appearanceReviewReportSchema,
-    createdAt: z.number(),
-    updatedAt: z.number(),
-    source: z.enum(['user', 'builtin']).optional(),
-    builtinVersion: z.number().optional(),
-  })
-  .passthrough()
-
-export const publicAppearanceThemesSchema = z
-  .object({
-    schemaVersion: z.literal(1),
-    activeProfileId: z.string(),
-    activeProfile: appearanceThemeProfileSchema.nullable(),
-    applyHistory: z.array(looseObject),
-    profiles: z.array(appearanceThemeProfileSchema),
-  })
-  .passthrough()
 
 export const looseObjectSchema = looseObject
 
@@ -742,6 +667,4 @@ export type ResearchEvidence = z.infer<typeof researchEvidenceSchema>
 export type ResearchClaimReview = z.infer<typeof researchClaimReviewSchema>
 export type ResearchWriteback = z.infer<typeof researchWritebackSchema>
 export type ResearchState = z.infer<typeof researchStateSchema>
-export type AppearanceThemeProfile = z.infer<typeof appearanceThemeProfileSchema>
-export type AppearanceReviewReport = z.infer<typeof appearanceReviewReportSchema>
 export type HealthStatus = z.infer<typeof healthStatusSchema>

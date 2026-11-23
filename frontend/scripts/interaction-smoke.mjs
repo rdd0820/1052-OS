@@ -9,30 +9,15 @@ const outputDir = path.resolve('test-results', 'interaction-smoke')
 
 const settings = {
   llm: {
-    baseUrl: 'http://localhost:11434/v1',
+    baseUrl: 'https://api.deepseek.com',
     modelId: 'gpt-test',
-    kind: 'local',
-    provider: 'local',
     apiFormat: 'openai-compatible',
-    activeProfileId: 'local',
-    profiles: [],
-    taskRoutes: [],
+    apiKey: 'sk-test',
     hasApiKey: true,
-    apiKeyMask: 'sk-***',
   },
-  appearance: { theme: 'dark', language: 'zh-CN', reduceMotion: false },
   agent: {
-    streaming: true,
     userPrompt: '',
     permissionProfile: 'default',
-    contextMessageLimit: 20,
-    progressiveDisclosureEnabled: true,
-    providerCachingEnabled: false,
-    checkpointEnabled: true,
-    seedOnResumeEnabled: true,
-    upgradeDebugEventsEnabled: false,
-    autoCompactEnabled: true,
-    autoCompactThreshold: 8000,
     morningBrief: { enabled: false, time: '08:30' },
   },
   imageGeneration: {},
@@ -158,57 +143,6 @@ function workflowFrom(body, index) {
   }
 }
 
-function reviewForTheme(theme) {
-  const safetyLevel = theme?.safetyLevel || 'safe'
-  return {
-    passed: safetyLevel !== 'rejected',
-    safetyLevel,
-    blockingIssues: safetyLevel === 'rejected' ? [{ code: 'rejected', path: 'theme.safetyLevel', message: 'theme rejected', suggestedFix: 'use safe tokens' }] : [],
-    warnings: safetyLevel === 'experimental' ? [{ code: 'experimental', path: 'theme.safetyLevel', message: 'experimental theme', suggestedFix: 'review before apply' }] : [],
-  }
-}
-
-function themeProfileFrom(body, index) {
-  const now = Date.now()
-  const theme = body.theme || body
-  const spec = {
-    schemaVersion: 1,
-    name: theme.name || `Smoke Theme ${index}`,
-    mode: theme.mode || 'dark',
-    scope: theme.scope || 'all',
-    safetyLevel: theme.safetyLevel || 'safe',
-    coreTokens: {
-      bg: '#080b0e',
-      surface: '#10171b',
-      fg: '#eef5f7',
-      accent: '#26d9d0',
-      success: '#4ade80',
-      danger: '#ff6b6b',
-      ...(theme.coreTokens || {}),
-    },
-    tokens: theme.tokens || {},
-  }
-  return {
-    id: body.id || theme.id || `theme-${index}`,
-    theme: spec,
-    review: reviewForTheme(spec),
-    createdAt: body.createdAt || now,
-    updatedAt: now,
-    source: body.source,
-  }
-}
-
-function appearanceStore(state) {
-  const activeProfile = state.appearanceThemes.find((profile) => profile.id === state.activeAppearanceId) ?? null
-  return {
-    schemaVersion: 1,
-    activeProfileId: state.activeAppearanceId,
-    activeProfile,
-    applyHistory: state.themeActions.filter((action) => action.type === 'apply'),
-    profiles: state.appearanceThemes,
-  }
-}
-
 const smokeDatasource = {
   id: 'ds-1',
   name: '本地 SQLite',
@@ -227,8 +161,6 @@ async function installApiMocks(page, options = {}) {
     skills: [],
     resources: [],
     workflows: [workflowFrom({ id: 'workflow-1', name: 'Smoke 编排', description: '用于交互验证' }, 1)],
-    appearanceThemes: [themeProfileFrom({ id: 'builtin-dark', name: 'Smoke Obsidian', source: 'builtin' }, 1)],
-    activeAppearanceId: 'builtin-dark',
     webhooks: [],
     postedChatMessages: [],
     savedSettings: [],
@@ -237,7 +169,6 @@ async function installApiMocks(page, options = {}) {
     taskRuns: [],
     sqlQueries: [],
     workflowExecutions: [],
-    themeActions: [],
     channelActions: [],
     feishuConnected: false,
     feishuWizardSessions: [],
@@ -293,44 +224,13 @@ async function installApiMocks(page, options = {}) {
       return json(route, { ok: true, approvalId, approved })
     }
 
+    if (apiPath === '/health') return json(route, { ok: true, ts: Date.now() })
     if (apiPath === '/settings' && method === 'GET') return json(route, settings)
     if (apiPath === '/settings' && method === 'PUT') {
       const body = readJson(request)
-      const next = { ...settings, ...body, appearance: { ...settings.appearance, ...(body.appearance ?? {}) } }
+      const next = { ...settings, ...body }
       state.savedSettings.push(next)
       return json(route, next)
-    }
-
-    if (apiPath === '/appearance/themes' && method === 'GET') return json(route, appearanceStore(state))
-    if (apiPath === '/appearance/themes/review' && method === 'POST') {
-      const body = readJson(request)
-      state.themeActions.push({ type: 'review' })
-      return json(route, reviewForTheme(body.theme || body))
-    }
-    if (apiPath === '/appearance/themes' && method === 'POST') {
-      const profile = themeProfileFrom(readJson(request), state.appearanceThemes.length + 1)
-      state.appearanceThemes.push(profile)
-      state.themeActions.push({ type: 'create', profileId: profile.id })
-      return json(route, profile, 201)
-    }
-    if (apiPath === '/appearance/themes/reset' && method === 'POST') {
-      state.activeAppearanceId = 'builtin-dark'
-      state.themeActions.push({ type: 'reset', profileId: 'builtin-dark', themeName: 'Smoke Obsidian', appliedAt: Date.now() })
-      return json(route, appearanceStore(state))
-    }
-    const appearanceApplyMatch = apiPath.match(/^\/appearance\/themes\/([^/]+)\/apply$/)
-    if (appearanceApplyMatch && method === 'POST') {
-      state.activeAppearanceId = appearanceApplyMatch[1]
-      const profile = state.appearanceThemes.find((item) => item.id === state.activeAppearanceId)
-      state.themeActions.push({ type: 'apply', profileId: state.activeAppearanceId, themeName: profile?.theme.name ?? state.activeAppearanceId, appliedAt: Date.now() })
-      return json(route, appearanceStore(state))
-    }
-    const appearanceDeleteMatch = apiPath.match(/^\/appearance\/themes\/([^/]+)$/)
-    if (appearanceDeleteMatch && method === 'DELETE') {
-      state.appearanceThemes = state.appearanceThemes.filter((profile) => profile.id !== appearanceDeleteMatch[1] || profile.source === 'builtin')
-      if (!state.appearanceThemes.some((profile) => profile.id === state.activeAppearanceId)) state.activeAppearanceId = 'builtin-dark'
-      state.themeActions.push({ type: 'delete', profileId: appearanceDeleteMatch[1] })
-      return json(route, appearanceStore(state))
     }
 
     if (apiPath === '/calendar/events') return json(route, [])
@@ -640,27 +540,20 @@ for (const [name, fn] of [
     await page.getByRole('heading', { name: '交互测试 Skill', exact: true }).waitFor({ timeout: 10_000 })
     if (state.skills[0]?.id !== 'smoke-skill') fail('skill create payload was not recorded')
   }],
-  ['appearance-save', async (page) => {
-    const state = await installApiMocks(page)
+  ['general-settings', async (page) => {
+    await installApiMocks(page)
     await page.goto(baseUrl + '/settings/appearance', { waitUntil: 'domcontentloaded' })
-    await page.getByRole('heading', { name: '外观与动态' }).waitFor({ timeout: 15_000 })
-    await page.getByText('Smoke Obsidian').first().waitFor({ timeout: 10_000 })
+    await page.waitForURL('**/settings/general', { timeout: 15_000 })
+    await page.getByRole('heading', { name: '主题模式' }).waitFor({ timeout: 15_000 })
+    await page.getByRole('heading', { name: '本地服务健康' }).waitFor({ timeout: 15_000 })
     await page.getByRole('button', { name: /钛白浅色/ }).click()
     const theme = await page.evaluate(() => document.documentElement.dataset.theme)
     if (theme !== 'light') fail(`theme did not switch to light, got ${theme}`)
-    await page.getByRole('button', { name: '审计 JSON' }).click()
-    await page.getByText('审计通过').waitFor({ timeout: 10_000 })
-    await page.getByRole('button', { name: '保存主题包' }).click()
-    await page.getByRole('button', { name: /本地主题包/ }).first().waitFor({ timeout: 10_000 })
-    await page.getByRole('button', { name: '应用' }).click()
-    await waitUntil(() => state.activeAppearanceId === 'theme-2', 'appearance theme apply was not posted')
-    await page.getByRole('button', { name: '重置' }).click()
-    await waitUntil(() => state.activeAppearanceId === 'builtin-dark', 'appearance theme reset was not posted')
-    await page.getByRole('button', { name: /保存外观设置/ }).click()
-    await page.waitForFunction(() => window.fetch !== undefined)
-    if (state.savedSettings[0]?.appearance.theme !== 'light') fail('appearance settings were not saved with light theme')
-    if (!state.themeActions.some((action) => action.type === 'review')) fail('theme review was not posted')
-    if (!state.themeActions.some((action) => action.type === 'create')) fail('theme create was not posted')
+    await page.getByRole('button', { name: /曜石深色/ }).click()
+    const restored = await page.evaluate(() => document.documentElement.dataset.theme)
+    if (restored !== 'dark') fail(`theme did not switch back to dark, got ${restored}`)
+    await page.goto(baseUrl + '/settings/system', { waitUntil: 'domcontentloaded' })
+    await page.waitForURL('**/settings/general', { timeout: 15_000 })
   }],
   ['today-partial-failure', async (page) => {
     await installApiMocks(page, { failTodayTasks: true })

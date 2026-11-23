@@ -1,938 +1,448 @@
-import { createHash } from 'node:crypto'
-import { httpError } from '../../http-error.js'
-import { readJson, writeJson } from '../../storage.js'
+import { readJson, writeJson } from "../../storage.js";
 import {
   createScheduledTask,
   listScheduledTasks,
   updateScheduledTask,
-} from '../calendar/calendar.schedule.service.js'
+} from "../calendar/calendar.schedule.service.js";
 import type {
   AgentSettings,
-  AgentPermissionProfile1052,
-  AppearanceEffects,
-  AppearanceSettings,
-  AppearanceWaterEffectIntensity,
-  AppearanceWaterEffectSettings,
   ImageGenerationSettings,
   LLMApiFormat,
-  LLMProfile,
-  LLMProfileKind,
-  LLMProviderKind,
   LLMSettings,
-  LLMTaskKind,
-  LLMTaskRoute,
   MorningBriefSettings,
   OcrSettings,
-  PublicLLMProfile,
+  ModelSettings,
   Settings,
   PublicSettings,
   SettingsPatch,
   UapisSettings,
-} from './settings.types.js'
+} from "./settings.types.js";
 
-const FILE = 'settings.json'
-const MORNING_BRIEF_TASK_MARKER = '[managed:agent-morning-brief]'
-const MORNING_BRIEF_TASK_TITLE = '每日 Intel Center 早报'
+/** `data/settings.json`。读出来先归一化，不把缺省值写回文件。 */
+const FILE = "settings.json";
+/** 写在托管定时任务的备注里，用来认出并更新同一条早报任务。 */
+const MORNING_BRIEF_TASK_MARKER = "[managed:agent-morning-brief]";
+/** 托管早报任务在日历里显示的标题。 */
+const MORNING_BRIEF_TASK_TITLE = "每日 Intel Center 早报";
+
+/**
+ * 文件缺失或字段无效时使用的缺省值。
+ * 图像的协议、尺寸、质量和输出参数没有设置页，生图服务直接读这里的值。
+ */
 const DEFAULT_SETTINGS: Settings = {
   llm: {
-    baseUrl: '',
-    modelId: '',
-    apiKey: '',
-    kind: 'cloud',
-    provider: 'openai-compatible',
-    apiFormat: 'openai-compatible',
-    activeProfileId: '',
-    profiles: [],
-    taskRoutes: [],
+    /** 主模型接口根地址，不含末尾 `/v1`。 */
+    baseUrl: "",
+    /** 对话、摘要和索引共用的模型 ID。 */
+    modelId: "",
+    /** 主模型密钥。空字符串表示未配置。 */
+    apiKey: "",
+    /** 未识别时按地址和模型 ID 推断。 */
+    apiFormat: "openai-compatible",
   },
   imageGeneration: {
-    apiFormat: 'openai-compatible',
-    baseUrl: '',
-    modelId: 'gpt-image-1',
-    apiKey: '',
-    size: 'auto',
-    quality: 'auto',
-    background: 'auto',
-    outputFormat: 'png',
+    /** `openai-compatible` 或 `gemini-native`。MiniMax 由生图服务按地址识别。 */
+    apiFormat: "openai-compatible",
+    baseUrl: "",
+    modelId: "gpt-image-1",
+    apiKey: "",
+    /** 请求默认尺寸，可被单次生图参数覆盖。 */
+    size: "auto",
+    quality: "auto",
+    background: "auto",
+    outputFormat: "png",
+    /** JPEG/WebP 压缩率，范围 0–100。 */
     outputCompression: 80,
   },
-  appearance: {
-    theme: 'dark',
-    language: 'zh-CN',
-  },
-  // Note: reduceMotion 与 effects 字段为可选；DEFAULT_SETTINGS 不写入它们以让 normalize 与 patch 处理 undefined 时保持向后兼容（旧 settings.json 不含这两字段）。
-  agent: {
-    streaming: true,
-    userPrompt: '',
-    permissionProfile: 'default',
-    contextMessageLimit: 160,
-    progressiveDisclosureEnabled: true,
-    providerCachingEnabled: true,
-    checkpointEnabled: true,
-    seedOnResumeEnabled: true,
-    upgradeDebugEventsEnabled: true,
-    autoCompactEnabled: true,
-    autoCompactThreshold: 80_000,
-    morningBrief: {
-      enabled: false,
-      time: '09:30',
-    },
-  },
   ocr: {
-    provider: 'uapis',
-    customBaseUrl: '',
-    customModelId: '',
-    customApiKey: '',
+    /** `uapis` 用平台密钥；`custom-model` 用下面三项。 */
+    provider: "uapis",
+    /** 自定义 OCR 根地址。请求时会自行补上 `/v1/chat/completions`。 */
+    customBaseUrl: "",
+    customModelId: "",
+    customApiKey: "",
   },
   uapis: {
-    apiKey: '',
+    /** 为空时 OCR 和 UAPIs 调用走免费 IP 额度。 */
+    apiKey: "",
   },
+  agent: {
+    /** 附加到系统提示的长期指令。 */
+    userPrompt: "",
+    /** `read-only` 只读，`default` 敏感操作需确认，`danger-full-access` 直接执行。 */
+    permissionProfile: "default",
+    morningBrief: {
+      enabled: false,
+      /** `HH:MM`，按 Asia/Hong_Kong 解释。 */
+      time: "09:30",
+    },
+  },
+};
+
+/** 归一化时允许的枚举。不在列表里的值回退到缺省，不抛错。 */
+const LLM_API_FORMATS = ["openai-compatible", "anthropic", "gemini"] as const;
+const IMAGE_API_FORMATS = ["openai-compatible", "gemini-native"] as const;
+const IMAGE_SIZES = ["auto", "1024x1024", "1536x1024", "1024x1536"] as const;
+const IMAGE_QUALITIES = ["auto", "low", "medium", "high"] as const;
+const IMAGE_BACKGROUNDS = ["auto", "opaque", "transparent"] as const;
+const IMAGE_OUTPUT_FORMATS = ["png", "jpeg", "webp"] as const;
+const OCR_PROVIDERS = ["uapis", "custom-model"] as const;
+const PERMISSION_PROFILES = ["read-only", "default", "danger-full-access"] as const;
+
+/** 只接受字符串。空字符串会保留，因此密钥传 `""` 会清空。 */
+function stringOr(value: unknown, fallback: string) {
+  return typeof value === "string" ? value : fallback;
 }
 
-type LegacyAgentSettings = Partial<Omit<AgentSettings, 'morningBrief'>> & {
-  systemPrompt?: string
-  fullAccess?: boolean
-  morningBrief?: Partial<MorningBriefSettings>
+/** 接受字符串并去掉首尾空白。非字符串用缺省值。 */
+function trimmedOr(value: unknown, fallback: string) {
+  return typeof value === "string" ? value.trim() : fallback;
 }
 
-type LegacySettings = Omit<Partial<Settings>, 'agent'> & {
-  agent?: LegacyAgentSettings
+/** 空白字符串视为未填，改用缺省值。用于模型 ID。 */
+function nonBlankOr(value: unknown, fallback: string) {
+  return trimmedOr(value, "") || fallback;
 }
 
-const VALID_LLM_KINDS = new Set<LLMProfileKind>(['cloud', 'local'])
-const VALID_LLM_API_FORMATS = new Set<LLMApiFormat>(['openai-compatible', 'anthropic', 'gemini'])
-const VALID_LLM_PROVIDERS = new Set<LLMProviderKind>([
-  'openai-compatible',
-  'ollama',
-  'lm-studio',
-  'localai',
-  'custom',
-])
-const VALID_LLM_TASKS = new Set<LLMTaskKind>([
-  'agent-chat',
-  'pdf-to-markdown',
-  'coding',
-  'summarization',
-  'vision',
-])
-
-function hashId(prefix: string, parts: string[]) {
-  const hash = createHash('sha256')
-  for (const part of parts) hash.update(part).update('\n')
-  return `${prefix}_${hash.digest('hex').slice(0, 16)}`
+/** 值不在允许列表中时用缺省值。 */
+function oneOf<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
 }
 
+/** 把数字四舍五入后限制在闭区间内。非法数字用缺省值。 */
+function clamped(value: unknown, min: number, max: number, fallback: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(Math.max(Math.round(value), min), max);
+}
+
+/** 未写 `apiFormat` 时，按地址和模型 ID 判断对话协议。 */
 function inferLlmApiFormat(baseUrl: string, modelId: string): LLMApiFormat {
-  const sig = `${baseUrl} ${modelId}`.toLowerCase()
-  if (sig.includes('anthropic') || sig.includes('claude')) return 'anthropic'
+  const sig = `${baseUrl} ${modelId}`.toLowerCase();
+  if (sig.includes("anthropic") || sig.includes("claude")) return "anthropic";
   if (
-    sig.includes('generativelanguage.googleapis.com') ||
-    sig.includes('aiplatform.googleapis.com') ||
+    sig.includes("generativelanguage.googleapis.com") ||
+    sig.includes("aiplatform.googleapis.com") ||
     /\bgemini\b/.test(sig)
-  ) return 'gemini'
-  return 'openai-compatible'
-}
-
-function inferLlmProvider(baseUrl: string, modelId: string): LLMProviderKind {
-  const signature = `${baseUrl} ${modelId}`.toLowerCase()
-  if (signature.includes('ollama')) return 'ollama'
-  if (signature.includes('lmstudio') || signature.includes('lm-studio')) return 'lm-studio'
-  if (signature.includes('localai')) return 'localai'
-  return 'openai-compatible'
-}
-
-function inferLlmKind(baseUrl: string, provider: LLMProviderKind): LLMProfileKind {
-  if (provider === 'ollama' || provider === 'lm-studio' || provider === 'localai') return 'local'
-  try {
-    const host = new URL(baseUrl).hostname
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return 'local'
-  } catch {
-    // Keep remote-safe default when the URL cannot be parsed.
-  }
-  return 'cloud'
-}
-
-function normalizeLlmProfile(input: unknown, fallbackIndex = 0): LLMProfile | null {
-  if (!input || typeof input !== 'object') return null
-  const raw = input as Partial<LLMProfile>
-  const baseUrl = typeof raw.baseUrl === 'string' ? raw.baseUrl.trim() : ''
-  const modelId = typeof raw.modelId === 'string' ? raw.modelId.trim() : ''
-  if (!baseUrl || !modelId) return null
-
-  const provider = VALID_LLM_PROVIDERS.has(raw.provider as LLMProviderKind)
-    ? (raw.provider as LLMProviderKind)
-    : inferLlmProvider(baseUrl, modelId)
-  const kind = VALID_LLM_KINDS.has(raw.kind as LLMProfileKind)
-    ? (raw.kind as LLMProfileKind)
-    : inferLlmKind(baseUrl, provider)
-  const id =
-    typeof raw.id === 'string' && raw.id.trim()
-      ? raw.id.trim().replace(/[^A-Za-z0-9_-]/g, '_')
-      : hashId('llm', [kind, provider, baseUrl, modelId, String(fallbackIndex)])
-
-  const apiFormat = VALID_LLM_API_FORMATS.has(raw.apiFormat as LLMApiFormat)
-    ? (raw.apiFormat as LLMApiFormat)
-    : inferLlmApiFormat(baseUrl, modelId)
-
-  return {
-    id,
-    name:
-      typeof raw.name === 'string' && raw.name.trim()
-        ? raw.name.trim()
-        : `${kind === 'local' ? '本地模型' : '云端模型'} · ${modelId}`,
-    kind,
-    provider,
-    apiFormat,
-    baseUrl,
-    modelId,
-    apiKey: typeof raw.apiKey === 'string' ? raw.apiKey.trim() : '',
-    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : true,
-    detected: raw.detected === true,
-    source: typeof raw.source === 'string' && raw.source.trim() ? raw.source.trim() : undefined,
-    lastSeenAt:
-      typeof raw.lastSeenAt === 'number' && Number.isFinite(raw.lastSeenAt)
-        ? raw.lastSeenAt
-        : undefined,
-  }
-}
-
-function normalizeLlmTaskRoutes(input: unknown, profiles: readonly LLMProfile[]): LLMTaskRoute[] {
-  if (!Array.isArray(input)) return []
-  const profileIds = new Set(
-    profiles.filter((profile) => profile.enabled).map((profile) => profile.id),
   )
-  const routes: LLMTaskRoute[] = []
-  const seen = new Set<LLMTaskKind>()
-
-  for (const item of input) {
-    if (!item || typeof item !== 'object') continue
-    const route = item as Partial<LLMTaskRoute>
-    if (!VALID_LLM_TASKS.has(route.task as LLMTaskKind)) continue
-    if (typeof route.profileId !== 'string' || !profileIds.has(route.profileId)) continue
-    if (seen.has(route.task as LLMTaskKind)) continue
-    seen.add(route.task as LLMTaskKind)
-    routes.push({
-      task: route.task as LLMTaskKind,
-      profileId: route.profileId,
-    })
-  }
-
-  return routes
+    return "gemini";
+  return "openai-compatible";
 }
 
-function createLegacyLlmProfile(llm: Partial<LLMSettings>): LLMProfile | null {
-  const baseUrl = typeof llm.baseUrl === 'string' ? llm.baseUrl.trim() : ''
-  const modelId = typeof llm.modelId === 'string' ? llm.modelId.trim() : ''
-  const apiKey = typeof llm.apiKey === 'string' ? llm.apiKey.trim() : ''
-  if (!baseUrl && !modelId && !apiKey) return null
-  if (!baseUrl || !modelId) return null
-
-  const provider = VALID_LLM_PROVIDERS.has(llm.provider as LLMProviderKind)
-    ? (llm.provider as LLMProviderKind)
-    : inferLlmProvider(baseUrl, modelId)
-  const kind = VALID_LLM_KINDS.has(llm.kind as LLMProfileKind)
-    ? (llm.kind as LLMProfileKind)
-    : inferLlmKind(baseUrl, provider)
-
-  const apiFormat = VALID_LLM_API_FORMATS.has(llm.apiFormat as LLMApiFormat)
-    ? (llm.apiFormat as LLMApiFormat)
-    : inferLlmApiFormat(baseUrl, modelId)
-
+/** 补齐主模型字段。地址和模型 ID 会 trim，密钥原样保留。 */
+function normalizeLlmSettings(llm: Partial<LLMSettings> | undefined): LLMSettings {
+  const current = llm ?? {};
+  const baseUrl = trimmedOr(current.baseUrl, DEFAULT_SETTINGS.llm.baseUrl);
+  const modelId = trimmedOr(current.modelId, DEFAULT_SETTINGS.llm.modelId);
   return {
-    id: hashId('llm', ['legacy', kind, provider, baseUrl, modelId]),
-    name: '当前模型',
-    kind,
-    provider,
-    apiFormat,
     baseUrl,
     modelId,
-    apiKey,
-    enabled: true,
-  }
+    apiKey: stringOr(current.apiKey, DEFAULT_SETTINGS.llm.apiKey),
+    apiFormat: oneOf(current.apiFormat, LLM_API_FORMATS, inferLlmApiFormat(baseUrl, modelId)),
+  };
 }
 
-function mirrorActiveLlmProfile(llm: Omit<LLMSettings, 'baseUrl' | 'modelId' | 'apiKey'>): LLMSettings {
-  const activeProfile =
-    llm.profiles.find((profile) => profile.id === llm.activeProfileId && profile.enabled) ??
-    llm.profiles.find((profile) => profile.enabled)
-
-  return {
-    ...llm,
-    activeProfileId: activeProfile?.id ?? '',
-    baseUrl: activeProfile?.baseUrl ?? '',
-    modelId: activeProfile?.modelId ?? '',
-    apiKey: activeProfile?.apiKey ?? '',
-    kind: activeProfile?.kind ?? llm.kind,
-    provider: activeProfile?.provider ?? llm.provider,
-    apiFormat: activeProfile?.apiFormat ?? llm.apiFormat,
-  }
-}
-
-function normalizeLlmSettings(llm: Partial<LLMSettings> | undefined): LLMSettings {
-  const current = llm ?? {}
-  const profiles = Array.isArray(current.profiles)
-    ? current.profiles
-        .map((profile, index) => normalizeLlmProfile(profile, index))
-        .filter((profile): profile is LLMProfile => profile !== null)
-    : []
-  const legacyProfile = createLegacyLlmProfile(current)
-  const normalizedProfiles =
-    profiles.length > 0
-      ? profiles
-      : legacyProfile
-        ? [legacyProfile]
-        : DEFAULT_SETTINGS.llm.profiles.map((profile) => ({ ...profile }))
-  const activeProfileId =
-    typeof current.activeProfileId === 'string' &&
-    normalizedProfiles.some((profile) => profile.id === current.activeProfileId)
-      ? current.activeProfileId
-      : legacyProfile?.id ?? normalizedProfiles[0]?.id ?? DEFAULT_SETTINGS.llm.activeProfileId
-
-  return mirrorActiveLlmProfile({
-    kind: VALID_LLM_KINDS.has(current.kind as LLMProfileKind)
-      ? (current.kind as LLMProfileKind)
-      : DEFAULT_SETTINGS.llm.kind,
-    provider: VALID_LLM_PROVIDERS.has(current.provider as LLMProviderKind)
-      ? (current.provider as LLMProviderKind)
-      : DEFAULT_SETTINGS.llm.provider,
-    apiFormat: VALID_LLM_API_FORMATS.has(current.apiFormat as LLMApiFormat)
-      ? (current.apiFormat as LLMApiFormat)
-      : DEFAULT_SETTINGS.llm.apiFormat,
-    activeProfileId,
-    profiles: normalizedProfiles,
-    taskRoutes: normalizeLlmTaskRoutes(current.taskRoutes, normalizedProfiles),
-  })
-}
-
+/** 补齐生图字段。模型 ID 为空时回到缺省模型，压缩率限制在 0–100。 */
 function normalizeImageGenerationSettings(
   imageGeneration: Partial<ImageGenerationSettings> | undefined,
 ): ImageGenerationSettings {
-  const current = imageGeneration ?? {}
+  const current = imageGeneration ?? {};
+  const defaults = DEFAULT_SETTINGS.imageGeneration;
   return {
-    apiFormat:
-      current.apiFormat === 'gemini-native' || current.apiFormat === 'openai-compatible'
-        ? current.apiFormat
-        : DEFAULT_SETTINGS.imageGeneration.apiFormat,
-    baseUrl:
-      typeof current.baseUrl === 'string'
-        ? current.baseUrl
-        : DEFAULT_SETTINGS.imageGeneration.baseUrl,
-    modelId:
-      typeof current.modelId === 'string' && current.modelId.trim()
-        ? current.modelId.trim()
-        : DEFAULT_SETTINGS.imageGeneration.modelId,
-    apiKey:
-      typeof current.apiKey === 'string'
-        ? current.apiKey
-        : DEFAULT_SETTINGS.imageGeneration.apiKey,
-    size:
-      current.size === '1024x1024' ||
-      current.size === '1536x1024' ||
-      current.size === '1024x1536' ||
-      current.size === 'auto'
-        ? current.size
-        : DEFAULT_SETTINGS.imageGeneration.size,
-    quality:
-      current.quality === 'low' ||
-      current.quality === 'medium' ||
-      current.quality === 'high' ||
-      current.quality === 'auto'
-        ? current.quality
-        : DEFAULT_SETTINGS.imageGeneration.quality,
-    background:
-      current.background === 'opaque' ||
-      current.background === 'transparent' ||
-      current.background === 'auto'
-        ? current.background
-        : DEFAULT_SETTINGS.imageGeneration.background,
-    outputFormat:
-      current.outputFormat === 'jpeg' ||
-      current.outputFormat === 'webp' ||
-      current.outputFormat === 'png'
-        ? current.outputFormat
-        : DEFAULT_SETTINGS.imageGeneration.outputFormat,
-    outputCompression:
-      typeof current.outputCompression === 'number' && Number.isFinite(current.outputCompression)
-        ? Math.min(Math.max(Math.round(current.outputCompression), 0), 100)
-        : DEFAULT_SETTINGS.imageGeneration.outputCompression,
-  }
+    apiFormat: oneOf(current.apiFormat, IMAGE_API_FORMATS, defaults.apiFormat),
+    baseUrl: stringOr(current.baseUrl, defaults.baseUrl),
+    modelId: nonBlankOr(current.modelId, defaults.modelId),
+    apiKey: stringOr(current.apiKey, defaults.apiKey),
+    size: oneOf(current.size, IMAGE_SIZES, defaults.size),
+    quality: oneOf(current.quality, IMAGE_QUALITIES, defaults.quality),
+    background: oneOf(current.background, IMAGE_BACKGROUNDS, defaults.background),
+    outputFormat: oneOf(current.outputFormat, IMAGE_OUTPUT_FORMATS, defaults.outputFormat),
+    outputCompression: clamped(current.outputCompression, 0, 100, defaults.outputCompression),
+  };
 }
 
-function normalizeOcrSettings(
-  ocr: Partial<OcrSettings> | undefined,
-): OcrSettings {
-  const current = ocr ?? {}
+/** 补齐 OCR 字段。自定义模型 ID 为空时回到缺省值，密钥允许为空。 */
+function normalizeOcrSettings(ocr: Partial<OcrSettings> | undefined): OcrSettings {
+  const current = ocr ?? {};
+  const defaults = DEFAULT_SETTINGS.ocr;
   return {
-    provider:
-      current.provider === 'uapis' || current.provider === 'custom-model'
-        ? current.provider
-        : DEFAULT_SETTINGS.ocr.provider,
-    customBaseUrl:
-      typeof current.customBaseUrl === 'string'
-        ? current.customBaseUrl
-        : DEFAULT_SETTINGS.ocr.customBaseUrl,
-    customModelId:
-      typeof current.customModelId === 'string' && current.customModelId.trim()
-        ? current.customModelId.trim()
-        : DEFAULT_SETTINGS.ocr.customModelId,
-    customApiKey:
-      typeof current.customApiKey === 'string'
-        ? current.customApiKey
-        : DEFAULT_SETTINGS.ocr.customApiKey,
-  }
+    provider: oneOf(current.provider, OCR_PROVIDERS, defaults.provider),
+    customBaseUrl: stringOr(current.customBaseUrl, defaults.customBaseUrl),
+    customModelId: nonBlankOr(current.customModelId, defaults.customModelId),
+    customApiKey: stringOr(current.customApiKey, defaults.customApiKey),
+  };
 }
 
-function mergeSettings(base: Settings, partial: Partial<Settings>): Settings {
-  return {
-    llm: normalizeLlmSettings({ ...base.llm, ...(partial.llm ?? {}) }),
-    imageGeneration: {
-      ...base.imageGeneration,
-      ...(partial.imageGeneration ?? {}),
-    },
-    ocr: normalizeOcrSettings({ ...base.ocr, ...(partial.ocr ?? {}) }),
-    appearance: { ...base.appearance, ...(partial.appearance ?? {}) },
-    agent: { ...base.agent, ...(partial.agent ?? {}) },
-    uapis: { ...base.uapis, ...(partial.uapis ?? {}) },
-  }
-}
-
+/** 是否为 `HH:MM`，小时 00–23。 */
 function isTimeString(value: unknown): value is string {
-  return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim())
+  return (
+    typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim())
+  );
 }
 
+/** 非法时间或非布尔开关回退到已有早报设置，不改另一项。 */
 function normalizeMorningBriefSettings(
   input: unknown,
   fallback: MorningBriefSettings = DEFAULT_SETTINGS.agent.morningBrief,
 ): MorningBriefSettings {
-  if (!input || typeof input !== 'object') return fallback
-  const raw = input as Partial<MorningBriefSettings>
+  if (!input || typeof input !== "object") return fallback;
+  const raw = input as Partial<MorningBriefSettings>;
 
   return {
-    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : fallback.enabled,
+    enabled: typeof raw.enabled === "boolean" ? raw.enabled : fallback.enabled,
     time: isTimeString(raw.time) ? raw.time.trim() : fallback.time,
-  }
+  };
 }
 
+/** 香港当天日期，格式 `YYYY-MM-DD`。新建早报任务时作为开始日期。 */
 function todayInHongKong() {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Hong_Kong',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date())
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Hong_Kong",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
+/** 写入托管定时任务的固定提示词。 */
 function buildMorningBriefPrompt() {
   return [
-    '请生成今天的 Intel Center 早报。',
-    '',
-    '执行要求：',
-    '- 优先读取并使用已安装的 intel-center Skill。',
-    '- 使用 intel_center_collect 采集原始情报；不要用终端手动猜测 Skill 脚本路径。',
-    '- 按 Skill 工作流采集新闻、行情与跨政治/金融/科技板块的联动信号。',
-    '- 如果需要把结果发往外部通道，必须遵守当前权限和投递配置；本托管任务默认只回写 1052 OS 聊天流与通知中心。',
-    '- 输出中文简报，包含核心摘要、分板块观察、市场异常、传导链、风险/机会和主要来源。',
-  ].join('\n')
+    "请生成今天的 Intel Center 早报。",
+    "",
+    "执行要求：",
+    "- 优先读取并使用已安装的 intel-center Skill。",
+    "- 使用 intel_center_collect 采集原始情报；不要用终端手动猜测 Skill 脚本路径。",
+    "- 按 Skill 工作流采集新闻、行情与跨政治/金融/科技板块的联动信号。",
+    "- 如果需要把结果发往外部通道，必须遵守当前权限和投递配置；本托管任务默认只回写 1052 OS 聊天流与通知中心。",
+    "- 输出中文简报，包含核心摘要、分板块观察、市场异常、传导链、风险/机会和主要来源。",
+  ].join("\n");
 }
 
+/**
+ * 把早报开关和时间同步到日历里的托管任务。
+ * 已有任务会更新，并保留用户另行配置的外部投递；没有任务时，只有开启才创建。
+ * 定时生成目前还不是正在使用的产品能力，这段逻辑保留着，保存早报设置时仍会执行。
+ */
 async function syncMorningBriefScheduledTask(settings: MorningBriefSettings) {
-  const tasks = await listScheduledTasks({ target: 'agent', limit: 200 })
-  const existing = tasks.find(
-    (task) => task.notes.includes(MORNING_BRIEF_TASK_MARKER),
-  )
+  const tasks = await listScheduledTasks({ target: "agent", limit: 200 });
+  const existing = tasks.find((task) =>
+    task.notes.includes(MORNING_BRIEF_TASK_MARKER),
+  );
   const input = {
     title: MORNING_BRIEF_TASK_TITLE,
     notes: `${MORNING_BRIEF_TASK_MARKER}\n由 Agent 行为设置管理。外部通道投递默认关闭；需要飞书/微信投递时，请在定时任务中显式配置目标。`,
-    target: 'agent' as const,
-    mode: 'ongoing' as const,
+    target: "agent" as const,
+    mode: "ongoing" as const,
     startDate: existing?.startDate ?? todayInHongKong(),
     time: settings.time,
-    repeatUnit: 'day' as const,
+    repeatUnit: "day" as const,
     repeatInterval: 1,
     repeatWeekdays: [],
-    endDate: '',
+    endDate: "",
     prompt: buildMorningBriefPrompt(),
-    command: '',
+    command: "",
     enabled: settings.enabled,
     delivery: existing?.delivery ?? {
-      wechat: { mode: 'off' as const, accountId: '', peerId: '' },
-      feishu: { mode: 'off' as const, receiveIdType: 'chat_id' as const, receiveId: '' },
+      wechat: { mode: "off" as const, accountId: "", peerId: "" },
+      feishu: {
+        mode: "off" as const,
+        receiveIdType: "chat_id" as const,
+        receiveId: "",
+      },
     },
-  }
+  };
 
   if (existing) {
-    await updateScheduledTask(existing.id, input)
+    await updateScheduledTask(existing.id, input);
   } else if (settings.enabled) {
-    await createScheduledTask(input)
+    await createScheduledTask(input);
   }
 }
 
-function normalizeAgentSettings(agent: LegacyAgentSettings | undefined): AgentSettings {
-  if (!agent) return DEFAULT_SETTINGS.agent
-
-  const rawPermissionProfile = (agent as { permissionProfile?: unknown }).permissionProfile
-  const permissionProfile: AgentPermissionProfile1052 =
-    rawPermissionProfile === 'read-only' ||
-    rawPermissionProfile === 'default' ||
-    rawPermissionProfile === 'danger-full-access'
-      ? rawPermissionProfile
-      : (agent as { fullAccess?: unknown }).fullAccess === true
-        ? 'danger-full-access'
-        : DEFAULT_SETTINGS.agent.permissionProfile
-
+/** 只保留权限、附加指令和早报。其余运行行为不进入设置。 */
+function normalizeAgentSettings(agent: Partial<AgentSettings> | undefined): AgentSettings {
+  const defaults = DEFAULT_SETTINGS.agent;
   return {
-    streaming:
-      typeof agent.streaming === 'boolean'
-        ? agent.streaming
-        : DEFAULT_SETTINGS.agent.streaming,
-    userPrompt:
-      typeof agent.userPrompt === 'string'
-        ? agent.userPrompt
-        : typeof agent.systemPrompt === 'string'
-          ? agent.systemPrompt
-          : DEFAULT_SETTINGS.agent.userPrompt,
-    permissionProfile,
-    contextMessageLimit:
-      typeof (agent as { contextMessageLimit?: unknown }).contextMessageLimit === 'number' &&
-      Number.isFinite((agent as { contextMessageLimit?: unknown }).contextMessageLimit)
-        ? Math.min(
-            Math.max(
-              Math.round((agent as { contextMessageLimit?: number }).contextMessageLimit ?? 50),
-              1,
-            ),
-            999,
-          )
-        : DEFAULT_SETTINGS.agent.contextMessageLimit,
-    progressiveDisclosureEnabled:
-      typeof (agent as { progressiveDisclosureEnabled?: unknown }).progressiveDisclosureEnabled ===
-      'boolean'
-        ? Boolean((agent as { progressiveDisclosureEnabled?: unknown }).progressiveDisclosureEnabled)
-        : DEFAULT_SETTINGS.agent.progressiveDisclosureEnabled,
-    providerCachingEnabled:
-      typeof (agent as { providerCachingEnabled?: unknown }).providerCachingEnabled === 'boolean'
-        ? Boolean((agent as { providerCachingEnabled?: unknown }).providerCachingEnabled)
-        : DEFAULT_SETTINGS.agent.providerCachingEnabled,
-    checkpointEnabled:
-      typeof (agent as { checkpointEnabled?: unknown }).checkpointEnabled === 'boolean'
-        ? Boolean((agent as { checkpointEnabled?: unknown }).checkpointEnabled)
-        : DEFAULT_SETTINGS.agent.checkpointEnabled,
-    seedOnResumeEnabled:
-      typeof (agent as { seedOnResumeEnabled?: unknown }).seedOnResumeEnabled === 'boolean'
-        ? Boolean((agent as { seedOnResumeEnabled?: unknown }).seedOnResumeEnabled)
-        : DEFAULT_SETTINGS.agent.seedOnResumeEnabled,
-    upgradeDebugEventsEnabled:
-      typeof (agent as { upgradeDebugEventsEnabled?: unknown }).upgradeDebugEventsEnabled ===
-      'boolean'
-        ? Boolean((agent as { upgradeDebugEventsEnabled?: unknown }).upgradeDebugEventsEnabled)
-        : DEFAULT_SETTINGS.agent.upgradeDebugEventsEnabled,
-    autoCompactEnabled:
-      typeof (agent as { autoCompactEnabled?: unknown }).autoCompactEnabled === 'boolean'
-        ? Boolean((agent as { autoCompactEnabled?: unknown }).autoCompactEnabled)
-        : DEFAULT_SETTINGS.agent.autoCompactEnabled,
-    autoCompactThreshold:
-      typeof (agent as { autoCompactThreshold?: unknown }).autoCompactThreshold === 'number' &&
-      Number.isFinite((agent as { autoCompactThreshold?: unknown }).autoCompactThreshold) &&
-      ((agent as { autoCompactThreshold?: number }).autoCompactThreshold ?? 0) >= 20_000
-        ? Math.min(
-            Math.max(
-              Math.round((agent as { autoCompactThreshold?: number }).autoCompactThreshold ?? 80_000),
-              20_000,
-            ),
-            200_000,
-          )
-        : DEFAULT_SETTINGS.agent.autoCompactThreshold,
-    morningBrief: normalizeMorningBriefSettings(
-      (agent as { morningBrief?: unknown }).morningBrief,
-      DEFAULT_SETTINGS.agent.morningBrief,
-    ),
-  }
+    userPrompt: stringOr(agent?.userPrompt, defaults.userPrompt),
+    permissionProfile: oneOf(agent?.permissionProfile, PERMISSION_PROFILES, defaults.permissionProfile),
+    morningBrief: normalizeMorningBriefSettings(agent?.morningBrief, defaults.morningBrief),
+  };
 }
 
+/** UAPIs 密钥。空字符串表示使用免费 IP 额度。 */
 function normalizeUapisSettings(uapis: Partial<UapisSettings> | undefined): UapisSettings {
-  return {
-    apiKey: typeof uapis?.apiKey === 'string' ? uapis.apiKey : DEFAULT_SETTINGS.uapis.apiKey,
-  }
+  return { apiKey: stringOr(uapis?.apiKey, DEFAULT_SETTINGS.uapis.apiKey) };
 }
 
-const VALID_WATER_INTENSITIES = new Set<AppearanceWaterEffectIntensity>(['low', 'medium', 'high'])
-
-function normalizeWaterEffectSettings(
-  input: Partial<AppearanceWaterEffectSettings> | undefined,
-): AppearanceWaterEffectSettings | undefined {
-  if (!input || typeof input !== 'object') return undefined
-  const enabled = typeof input.enabled === 'boolean' ? input.enabled : true
-  const result: AppearanceWaterEffectSettings = { enabled }
-  if (VALID_WATER_INTENSITIES.has(input.intensity as AppearanceWaterEffectIntensity)) {
-    result.intensity = input.intensity as AppearanceWaterEffectIntensity
-  }
-  if (typeof input.hoverRipple === 'boolean') result.hoverRipple = input.hoverRipple
-  if (typeof input.clickWave === 'boolean') result.clickWave = input.clickWave
-  return result
-}
-
-function normalizeAppearanceEffects(
-  effects: Partial<AppearanceEffects> | undefined,
-): AppearanceEffects | undefined {
-  if (!effects || typeof effects !== 'object') return undefined
-  const water = normalizeWaterEffectSettings(effects.water)
-  if (!water) return undefined
-  return { water }
-}
-
-function normalizeReduceMotion(value: unknown): boolean | null | undefined {
-  if (value === true || value === false) return value
-  if (value === null) return null
-  return undefined
-}
-
-function normalizeAppearanceSettings(
-  appearance: Partial<AppearanceSettings> | undefined,
-): AppearanceSettings {
-  const result: AppearanceSettings = {
-    theme:
-      appearance?.theme === 'dark' || appearance?.theme === 'light' || appearance?.theme === 'auto'
-        ? appearance.theme
-        : DEFAULT_SETTINGS.appearance.theme,
-    language:
-      appearance?.language === 'zh-CN' || appearance?.language === 'en-US'
-        ? appearance.language
-        : DEFAULT_SETTINGS.appearance.language,
-  }
-  const reduceMotion = normalizeReduceMotion(appearance?.reduceMotion)
-  if (reduceMotion !== undefined) result.reduceMotion = reduceMotion
-  const effects = normalizeAppearanceEffects(appearance?.effects)
-  if (effects) result.effects = effects
-  return result
-}
-
-function maskKey(key: string): string {
-  if (!key) return ''
-  if (key.length <= 8) return '****'
-  return key.slice(0, 3) + '****' + key.slice(-4)
-}
-
-function toPublicLlmProfile(profile: LLMProfile): PublicLLMProfile {
-  const { apiKey: _apiKey, ...safeProfile } = profile
-  return {
-    ...safeProfile,
-    hasApiKey: profile.apiKey.length > 0,
-    apiKeyMask: maskKey(profile.apiKey),
-  }
-}
-
+/**
+ * 去掉页面用不到的内部字段：生图协议与输出参数、OCR 自定义密钥、UAPIs 密钥。
+ * `hasApiKey` 由主模型密钥是否为空算出。
+ */
 function toPublic(settings: Settings): PublicSettings {
   return {
     llm: {
       baseUrl: settings.llm.baseUrl,
       modelId: settings.llm.modelId,
-      kind: settings.llm.kind,
-      provider: settings.llm.provider,
+      apiKey: settings.llm.apiKey,
       apiFormat: settings.llm.apiFormat,
-      activeProfileId: settings.llm.activeProfileId,
-      profiles: settings.llm.profiles.map((profile) => toPublicLlmProfile(profile)),
-      taskRoutes: settings.llm.taskRoutes,
       hasApiKey: settings.llm.apiKey.length > 0,
-      apiKeyMask: maskKey(settings.llm.apiKey),
     },
     imageGeneration: {
-      apiFormat: settings.imageGeneration.apiFormat,
       baseUrl: settings.imageGeneration.baseUrl,
       modelId: settings.imageGeneration.modelId,
-      size: settings.imageGeneration.size,
-      quality: settings.imageGeneration.quality,
-      background: settings.imageGeneration.background,
-      outputFormat: settings.imageGeneration.outputFormat,
-      outputCompression: settings.imageGeneration.outputCompression,
-      hasApiKey: settings.imageGeneration.apiKey.length > 0,
-      apiKeyMask: maskKey(settings.imageGeneration.apiKey),
+      apiKey: settings.imageGeneration.apiKey,
     },
-    appearance: settings.appearance,
     agent: settings.agent,
     ocr: {
       provider: settings.ocr.provider,
       customBaseUrl: settings.ocr.customBaseUrl,
       customModelId: settings.ocr.customModelId,
-      hasCustomApiKey: settings.ocr.customApiKey.length > 0,
-      customApiKeyMask: maskKey(settings.ocr.customApiKey),
     },
-    uapis: {
-      hasApiKey: settings.uapis.apiKey.length > 0,
-      apiKeyMask: maskKey(settings.uapis.apiKey),
-      mode: settings.uapis.apiKey.length > 0 ? 'api-key' : 'free-ip-quota',
-      home: 'https://uapis.cn',
-      console: 'https://uapis.cn/console',
-      anonymousMonthlyCredits: 1500,
-      apiKeyMonthlyCredits: 3500,
-    },
-  }
+  };
 }
 
-function replaceProfile(profiles: readonly LLMProfile[], nextProfile: LLMProfile): LLMProfile[] {
-  const next: LLMProfile[] = []
-  let replaced = false
-  for (const profile of profiles) {
-    if (profile.id === nextProfile.id) {
-      next.push(nextProfile)
-      replaced = true
-    } else {
-      next.push(profile)
-    }
-  }
-  if (!replaced) next.push(nextProfile)
-  return next
-}
-
+/** 未提交主模型补丁时保持原值。提交的空字符串会清空对应字段。 */
 function applyLlmPatch(current: LLMSettings, patch: Partial<LLMSettings> | undefined): LLMSettings {
-  if (!patch) return current
-
-  let profiles = current.profiles
-  if (Array.isArray(patch.profiles)) {
-    profiles = patch.profiles
-      .map((profile, index) => normalizeLlmProfile(profile, index))
-      .filter((profile): profile is LLMProfile => profile !== null)
-  }
-
-  const hasManualConfigPatch =
-    typeof patch.baseUrl === 'string' ||
-    typeof patch.modelId === 'string' ||
-    (typeof patch.apiKey === 'string' && patch.apiKey.trim().length > 0) ||
-    VALID_LLM_KINDS.has(patch.kind as LLMProfileKind) ||
-    VALID_LLM_PROVIDERS.has(patch.provider as LLMProviderKind)
-
-  let activeProfileId =
-    typeof patch.activeProfileId === 'string' &&
-    profiles.some((profile) => profile.id === patch.activeProfileId)
-      ? patch.activeProfileId
-      : current.activeProfileId
-
-  if (hasManualConfigPatch) {
-    const currentActive =
-      profiles.find((profile) => profile.id === activeProfileId) ??
-      profiles.find((profile) => profile.id === current.activeProfileId)
-    const baseUrl =
-      typeof patch.baseUrl === 'string' ? patch.baseUrl.trim() : currentActive?.baseUrl ?? ''
-    const modelId =
-      typeof patch.modelId === 'string' ? patch.modelId.trim() : currentActive?.modelId ?? ''
-    const provider = VALID_LLM_PROVIDERS.has(patch.provider as LLMProviderKind)
-      ? (patch.provider as LLMProviderKind)
-      : currentActive?.provider ?? inferLlmProvider(baseUrl, modelId)
-    const kind = VALID_LLM_KINDS.has(patch.kind as LLMProfileKind)
-      ? (patch.kind as LLMProfileKind)
-      : currentActive?.kind ?? inferLlmKind(baseUrl, provider)
-    const apiKey =
-      typeof patch.apiKey === 'string' && patch.apiKey.trim().length > 0
-        ? patch.apiKey.trim()
-        : currentActive?.apiKey ?? ''
-
-    const apiFormat = VALID_LLM_API_FORMATS.has(patch.apiFormat as LLMApiFormat)
-      ? (patch.apiFormat as LLMApiFormat)
-      : currentActive?.apiFormat ?? inferLlmApiFormat(baseUrl, modelId)
-
-    if (baseUrl && modelId) {
-      const nextProfile: LLMProfile = {
-        id: currentActive?.id ?? hashId('llm', ['manual', kind, provider, baseUrl, modelId]),
-        name: currentActive?.name ?? '当前模型',
-        kind,
-        provider,
-        apiFormat,
-        baseUrl,
-        modelId,
-        apiKey,
-        enabled: currentActive?.enabled ?? true,
-        detected: currentActive?.detected,
-        source: currentActive?.source,
-        lastSeenAt: currentActive?.lastSeenAt,
-      }
-      profiles = replaceProfile(profiles, nextProfile)
-      activeProfileId = nextProfile.id
-    }
-  }
-
-  const next = mirrorActiveLlmProfile({
-    kind: current.kind,
-    provider: current.provider,
-    apiFormat: current.apiFormat,
-    activeProfileId,
-    profiles,
-    taskRoutes: normalizeLlmTaskRoutes(patch.taskRoutes ?? current.taskRoutes, profiles),
-  })
-  return normalizeLlmSettings(next)
+  if (!patch) return current;
+  return normalizeLlmSettings({
+    ...current,
+    ...patch,
+    baseUrl: stringOr(patch.baseUrl, current.baseUrl),
+    modelId: stringOr(patch.modelId, current.modelId),
+    apiKey: stringOr(patch.apiKey, current.apiKey),
+  });
 }
 
-export function resolveLlmConfigForTask(
-  llm: LLMSettings,
-  task: LLMTaskKind = 'agent-chat',
-): LLMSettings {
-  const route = llm.taskRoutes.find((item) => item.task === task)
-  const routedProfile =
-    route ? llm.profiles.find((profile) => profile.id === route.profileId && profile.enabled) : null
-  const activeProfile =
-    routedProfile ??
-    llm.profiles.find((profile) => profile.id === llm.activeProfileId && profile.enabled) ??
-    llm.profiles.find((profile) => profile.enabled)
-
-  if (!activeProfile) return llm
-
-  return {
-    ...llm,
-    activeProfileId: activeProfile.id,
-    baseUrl: activeProfile.baseUrl,
-    modelId: activeProfile.modelId,
-    apiKey: activeProfile.apiKey,
-    kind: activeProfile.kind,
-    provider: activeProfile.provider,
-    apiFormat: activeProfile.apiFormat,
-  }
-}
-
+/** 读取并归一化完整设置。后端服务用这份结果，不直接返回给页面。 */
 export async function getSettings(): Promise<Settings> {
-  const raw = await readJson<LegacySettings>(FILE, {})
-  return mergeSettings(DEFAULT_SETTINGS, {
-    ...raw,
+  const raw = await readJson<Partial<Settings>>(FILE, {});
+  return {
     llm: normalizeLlmSettings(raw.llm),
     imageGeneration: normalizeImageGenerationSettings(raw.imageGeneration),
-    appearance: normalizeAppearanceSettings(raw.appearance),
+    ocr: normalizeOcrSettings(raw.ocr),
     agent: normalizeAgentSettings(raw.agent),
     uapis: normalizeUapisSettings(raw.uapis),
-  })
+  };
 }
 
+/** `GET /api/settings`。对话页和今日页用它读取当前模型和权限。 */
 export async function getPublicSettings(): Promise<PublicSettings> {
-  return toPublic(await getSettings())
+  return toPublic(await getSettings());
 }
 
-export async function updateSettings(patch: SettingsPatch): Promise<PublicSettings> {
-  const current = await getSettings()
-  const agentPatch = patch.agent ?? {}
+/**
+ * 模型页投影。
+ * `hasCredential`：自定义 OCR 看 `customApiKey`，UAPIs OCR 看 `uapis.apiKey`。
+ */
+export function projectModelSettings(settings: Settings): ModelSettings {
+  const pub = toPublic(settings);
+  const hasCredential =
+    settings.ocr.provider === "custom-model"
+      ? settings.ocr.customApiKey.length > 0
+      : settings.uapis.apiKey.length > 0;
+  return {
+    llm: pub.llm,
+    imageGeneration: pub.imageGeneration,
+    ocr: {
+      ...pub.ocr,
+      hasCredential,
+    },
+  };
+}
+
+/** `GET /api/settings/models`。 */
+export async function getModelSettings(): Promise<ModelSettings> {
+  return projectModelSettings(await getSettings());
+}
+
+/** Agent 页投影，只有附加指令、权限和早报。 */
+export function projectAgentSettings(settings: Settings): AgentSettings {
+  return settings.agent;
+}
+
+/** `GET /api/settings/agent`。 */
+export async function getAgentSettings(): Promise<AgentSettings> {
+  return projectAgentSettings(await getSettings());
+}
+
+/** `PUT /api/settings/agent`。省略的字段保留，只合并提交的 Agent 字段。 */
+export async function updateAgentSettings(
+  patch: SettingsPatch["agent"],
+): Promise<AgentSettings> {
+  return projectAgentSettings(await saveSettings({ agent: patch }));
+}
+
+/** `PUT /api/settings/models`。只合并主模型、生图和 OCR，不动 Agent 与 UAPIs。 */
+export async function updateModelSettings(
+  patch: Pick<SettingsPatch, "llm" | "imageGeneration" | "ocr">,
+): Promise<ModelSettings> {
+  return projectModelSettings(await saveSettings(patch));
+}
+
+/**
+ * 唯一写盘路径。先读出当前值再合并，写回完整设置。
+ * 密钥字段省略则保留；显式传空字符串则清空。
+ * 补丁里带了 `morningBrief` 时，会同步日历里的早报托管任务。
+ */
+async function saveSettings(patch: SettingsPatch): Promise<Settings> {
+  const current = await getSettings();
+  const agentPatch = patch.agent ?? {};
   const mergedMorningBrief = agentPatch.morningBrief
     ? normalizeMorningBriefSettings(
         { ...current.agent.morningBrief, ...agentPatch.morningBrief },
         current.agent.morningBrief,
       )
-    : current.agent.morningBrief
-  const mergedAgent: LegacyAgentSettings = {
+    : current.agent.morningBrief;
+  const mergedAgent: Partial<AgentSettings> = {
     ...current.agent,
     ...agentPatch,
     morningBrief: mergedMorningBrief,
-  }
+  };
   const next: Settings = {
     ...current,
     llm: applyLlmPatch(current.llm, patch.llm),
-    imageGeneration: {
-      ...current.imageGeneration,
-      ...(patch.imageGeneration
-        ? normalizeImageGenerationSettings({
-            ...current.imageGeneration,
-            ...patch.imageGeneration,
-            apiKey: current.imageGeneration.apiKey,
-          })
-        : {}),
-      apiKey:
-        typeof patch.imageGeneration?.apiKey === 'string' &&
-        patch.imageGeneration.apiKey.trim().length > 0
-          ? patch.imageGeneration.apiKey.trim()
-          : current.imageGeneration.apiKey,
-    },
-    ocr: {
-      ...normalizeOcrSettings({
-        ...current.ocr,
-        ...(patch.ocr ?? {}),
-        customApiKey: current.ocr.customApiKey,
-      }),
-      customApiKey:
-        typeof patch.ocr?.customApiKey === 'string' &&
-        patch.ocr.customApiKey.trim().length > 0
-          ? patch.ocr.customApiKey.trim()
-          : current.ocr.customApiKey,
-    },
-    appearance: normalizeAppearanceSettings({
-      ...current.appearance,
-      ...(patch.appearance ?? {}),
+    imageGeneration: patch.imageGeneration
+      ? normalizeImageGenerationSettings({
+          ...current.imageGeneration,
+          ...patch.imageGeneration,
+          apiKey: stringOr(patch.imageGeneration.apiKey, current.imageGeneration.apiKey),
+        })
+      : current.imageGeneration,
+    ocr: normalizeOcrSettings({
+      ...current.ocr,
+      ...(patch.ocr ?? {}),
+      customApiKey: stringOr(patch.ocr?.customApiKey, current.ocr.customApiKey),
     }),
     agent: normalizeAgentSettings(mergedAgent),
-    uapis: {
-      ...current.uapis,
-      apiKey:
-        typeof patch.uapis?.apiKey === 'string' && patch.uapis.apiKey.trim().length > 0
-          ? patch.uapis.apiKey.trim()
-          : current.uapis.apiKey,
-    },
-  }
+    uapis: normalizeUapisSettings({
+      apiKey: stringOr(patch.uapis?.apiKey, current.uapis.apiKey),
+    }),
+  };
 
-  await writeJson(FILE, next)
+  await writeJson(FILE, next);
   if (patch.agent?.morningBrief !== undefined) {
-    await syncMorningBriefScheduledTask(next.agent.morningBrief)
+    await syncMorningBriefScheduledTask(next.agent.morningBrief);
   }
-  return toPublic(next)
+  return next;
 }
 
+/** `PUT /api/settings`。可同时改多个分区，返回公开投影。 */
+export async function updateSettings(patch: SettingsPatch): Promise<PublicSettings> {
+  return toPublic(await saveSettings(patch));
+}
+
+/** 拼进 Agent 运行上下文的早报偏好，提醒模型不要擅自改外部投递。 */
 export function formatMorningBriefRuntimeContext(agent: AgentSettings): string {
-  const { enabled, time } = agent.morningBrief
+  const { enabled, time } = agent.morningBrief;
   return [
-    'Morning brief settings:',
-    `- enabled: ${enabled ? 'true' : 'false'}`,
-    `- preferred delivery time: ${time} Asia/Hong_Kong`,
-    '- Purpose: create a daily local Intel Center brief covering news, markets, cross-domain signals, risks, opportunities, and primary sources.',
-    '- Default destination: 1052 OS chat stream and notification center only.',
-    '- Treat this as the user preference for daily Intel Center briefs. Do not create, modify, or send scheduled external deliveries unless the user asked for that change or the relevant permission mode allows it.',
-  ].join('\n')
-}
-
-export async function upsertLlmProfile(
-  profileInput: unknown,
-  options: { activate?: boolean } = {},
-): Promise<PublicSettings> {
-  const current = await getSettings()
-  const profile = normalizeLlmProfile(profileInput)
-  if (!profile) throw httpError(400, '无效的 LLM profile：baseUrl 和 modelId 必填')
-
-  const existing = current.llm.profiles.find((item) => item.id === profile.id)
-  const nextProfile: LLMProfile = {
-    ...existing,
-    ...profile,
-    apiKey: profile.apiKey || (profile.kind === 'cloud' ? existing?.apiKey ?? '' : ''),
-  }
-  const profiles = replaceProfile(current.llm.profiles, nextProfile)
-  const nextLlm = mirrorActiveLlmProfile({
-    ...current.llm,
-    activeProfileId: options.activate ? nextProfile.id : current.llm.activeProfileId,
-    profiles,
-    taskRoutes: normalizeLlmTaskRoutes(current.llm.taskRoutes, profiles),
-  })
-
-  const next = { ...current, llm: normalizeLlmSettings(nextLlm) }
-  await writeJson(FILE, next)
-  return toPublic(next)
-}
-
-export async function activateLlmProfile(profileId: string): Promise<PublicSettings> {
-  const current = await getSettings()
-  const profile = current.llm.profiles.find((item) => item.id === profileId)
-  if (!profile) {
-    throw httpError(404, '未找到 LLM profile')
-  }
-  if (!profile.enabled) throw httpError(400, 'LLM profile 已停用，不能激活')
-
-  const next = {
-    ...current,
-    llm: normalizeLlmSettings({
-      ...current.llm,
-      activeProfileId: profileId,
-    }),
-  }
-  await writeJson(FILE, next)
-  return toPublic(next)
-}
-
-export async function updateLlmTaskRoutes(routesInput: unknown): Promise<PublicSettings> {
-  const current = await getSettings()
-  const next = {
-    ...current,
-    llm: normalizeLlmSettings({
-      ...current.llm,
-      taskRoutes: normalizeLlmTaskRoutes(routesInput, current.llm.profiles),
-    }),
-  }
-  await writeJson(FILE, next)
-  return toPublic(next)
+    "早报设置：",
+    `- 是否启用：${enabled ? "是" : "否"}`,
+    `- 期望发送时间：${time}（Asia/Hong_Kong）`,
+    "- 用途：生成每日本地 Intel Center 早报，涵盖新闻、市场、跨领域信号、风险、机会和主要来源。",
+    "- 默认去向：只回写 1052 OS 聊天流和通知中心。",
+    "- 这是用户对每日 Intel Center 早报的偏好。除非用户明确要求修改，或当前权限允许，否则不要创建、修改或发送定时的外部投递。",
+  ].join("\n");
 }

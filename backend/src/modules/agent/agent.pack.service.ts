@@ -82,8 +82,6 @@ const PACK_TOOL_NAMES: Record<Exclude<AgentPackName, 'base-read-pack'>, readonly
   ],
   'settings-pack': [
     'agent_morning_brief_update',
-    'agent_llm_activate_profile',
-    'agent_llm_set_task_route',
   ],
   'plan-pack': [
     'calendar_create_event',
@@ -215,7 +213,7 @@ export function describePackForRouting(pack: Exclude<AgentPackName, 'base-read-p
     case 'skill-pack':
       return 'Skill 查询、读取、创建、Marketplace 检索，以及 Intel Center 工具箱的采集入口。当任务匹配已安装 Skill 时必须先申请本包并 skills_read 获取完整指令后按 Skill 工作流执行。新闻、早报、行情、全球情报、政经科技联动分析优先读取 intel-center Skill，并用 intel_center_collect 采集原始情报。用户要创建可复用工作流/框架/模板时也需要本包。'
     case 'settings-pack':
-      return 'Agent 运行设置维护。用于在用户明确确认后切换 LLM Profile、设置任务级模型路由或更新早报偏好；读取状态和本地模型扫描已在 base-read-pack 中可用。'
+      return 'Agent 运行设置维护。用于在用户明确确认后更新早报偏好。主模型只在设置页配置，不能由工具切换。'
     case 'plan-pack':
       return '日程创建/查询/更新/删除、定时任务创建/查询/更新/删除/暂停/恢复/立即运行、PKM 知识检索。日程写入、定时任务写入、任务立即运行和 PKM 索引重建需用户确认。'
     case 'data-pack':

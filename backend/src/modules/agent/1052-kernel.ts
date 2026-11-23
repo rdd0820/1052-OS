@@ -72,7 +72,7 @@ export const defaultRuntime1052LoopDriver: Runtime1052LoopDriver = {
       tools: step.tools,
       options: {
         abortSignal: state.options.abortSignal,
-        providerCachingEnabled: state.settings.agent.providerCachingEnabled,
+        providerCachingEnabled: true,
         streamIdleTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
       },
     })
@@ -583,10 +583,7 @@ export async function* runRuntime1052KernelEvents(
     while (!item.done) {
       rollout.enqueue(item.value)
       if (
-        shouldExposeRuntime1052Event(
-          item.value,
-          state.settings.agent.upgradeDebugEventsEnabled,
-        )
+        shouldExposeRuntime1052Event(item.value, true)
       ) {
         yield item.value
       }

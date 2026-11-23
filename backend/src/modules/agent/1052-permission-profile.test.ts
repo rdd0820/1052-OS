@@ -46,14 +46,9 @@ describe('1052 permission profile', () => {
     )
   })
 
-  it('keeps legacy fullAccess settings compatible during migration', () => {
-    expect(resolve1052PermissionProfile({ fullAccess: true }).id).toBe(':danger-full-access')
-    expect(resolve1052PermissionProfile({ fullAccess: false }).id).toBe(':default')
-  })
-
   it('renders a system prompt permission block from the active profile', () => {
     const text = describe1052PermissionProfile(
-      resolve1052PermissionProfile({ fullAccess: true }),
+      resolve1052PermissionProfile({ permissionProfile: 'danger-full-access' }),
     )
 
     expect(text).toContain('Permission profile: 1052 danger-full-access.')

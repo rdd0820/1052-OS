@@ -122,8 +122,7 @@ export const navSections: NavSection[] = [
     items: [
       { label: '模型接入', path: '/settings/models', icon: Bot },
       { label: 'Agent 与权限', path: '/settings/agent', icon: SlidersHorizontal },
-      { label: '外观与动态', path: '/settings/appearance', icon: Sparkles },
-      { label: '系统维护', path: '/settings/system', icon: Server },
+      { label: '通用设置', path: '/settings/general', icon: Settings },
     ],
   },
 ]

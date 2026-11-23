@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import { httpError } from '../../http-error.js'
 import {
-  activateLlmProfile,
+  getAgentSettings,
+  getModelSettings,
   getPublicSettings,
-  updateLlmTaskRoutes,
+  updateAgentSettings,
+  updateModelSettings,
   updateSettings,
-  upsertLlmProfile,
 } from './settings.service.js'
 
 export const settingsRouter: Router = Router()
@@ -27,29 +27,38 @@ settingsRouter.put('/', async (req, res, next) => {
   }
 })
 
-settingsRouter.post('/llm/profiles', async (req, res, next) => {
+settingsRouter.get('/models', async (_req, res, next) => {
+  try {
+    res.json(await getModelSettings())
+  } catch (e) {
+    next(e)
+  }
+})
+
+settingsRouter.put('/models', async (req, res, next) => {
   try {
     const body = req.body ?? {}
-    if (!body.profile || typeof body.profile !== 'object') {
-      throw httpError(400, 'profile 必填')
-    }
-    res.json(await upsertLlmProfile(body.profile, { activate: body.activate === true }))
+    res.json(await updateModelSettings({
+      llm: body.llm,
+      imageGeneration: body.imageGeneration,
+      ocr: body.ocr,
+    }))
   } catch (e) {
     next(e)
   }
 })
 
-settingsRouter.post('/llm/profiles/:id/activate', async (req, res, next) => {
+settingsRouter.get('/agent', async (_req, res, next) => {
   try {
-    res.json(await activateLlmProfile(req.params.id))
+    res.json(await getAgentSettings())
   } catch (e) {
     next(e)
   }
 })
 
-settingsRouter.put('/llm/task-routes', async (req, res, next) => {
+settingsRouter.put('/agent', async (req, res, next) => {
   try {
-    res.json(await updateLlmTaskRoutes(req.body?.routes ?? []))
+    res.json(await updateAgentSettings(req.body ?? {}))
   } catch (e) {
     next(e)
   }

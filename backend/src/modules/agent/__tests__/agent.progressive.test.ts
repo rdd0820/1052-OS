@@ -258,12 +258,9 @@ describe('agent progressive disclosure helpers', () => {
   it('mounts confirmed Agent settings tools through settings-pack', () => {
     const toolNames = getToolNamesForMountedPacks(expandMountedPacks(['settings-pack']))
     expect(toolNames).toContain('agent_morning_brief_update')
-    expect(toolNames).toContain('agent_llm_activate_profile')
-    expect(toolNames).toContain('agent_llm_set_task_route')
+    expect(toolNames).not.toContain('agent_llm_activate_profile')
     expect(hasAgentTool('agent_morning_brief_update')).toBe(true)
-    expect(hasAgentTool('agent_llm_activate_profile')).toBe(true)
-    expect(hasAgentTool('agent_llm_set_task_route')).toBe(true)
-    expect(describePackForRouting('settings-pack')).toContain('LLM Profile')
+    expect(hasAgentTool('agent_llm_activate_profile')).toBe(false)
     expect(describePackForRouting('settings-pack')).toContain('早报')
   })
 

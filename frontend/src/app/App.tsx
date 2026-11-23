@@ -35,8 +35,7 @@ const CapabilitiesChannels = lazy(() => import('../pages/capabilities/channels')
 const SettingsLayout = lazy(() => import('../pages/setting'))
 const ModelsSettings = lazy(() => import('../pages/setting/models'))
 const AgentSettings = lazy(() => import('../pages/setting/agent'))
-const AppearanceSettings = lazy(() => import('../pages/setting/appearance'))
-const SystemSettings = lazy(() => import('../pages/setting/system'))
+const GeneralSettings = lazy(() => import('../pages/setting/general'))
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'))
 
 function LoadingScreen() {
@@ -90,8 +89,9 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route index element={<Navigate to="models" replace />} />
       <Route path="models" element={<ModelsSettings />} />
       <Route path="agent" element={<AgentSettings />} />
-      <Route path="appearance" element={<AppearanceSettings />} />
-      <Route path="system" element={<SystemSettings />} />
+      <Route path="general" element={<GeneralSettings />} />
+      <Route path="appearance" element={<Navigate to="/settings/general" replace />} />
+      <Route path="system" element={<Navigate to="/settings/general" replace />} />
     </Route>
     <Route path="*" element={<NotFoundPage />} />
   </Route>,

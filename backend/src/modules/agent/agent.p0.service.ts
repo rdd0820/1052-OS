@@ -114,7 +114,7 @@ function getRoutingPrompt() {
     '- websearch_research_writeback persists approved claims and their immutable evidence into Wiki and PKM. It is a durable write operation and requires the active 1052 permission policy; never write pending, conflicted, or needs_review claims as verified knowledge.',
     '- Research search results start as pending. Review source relevance before approving them; reject irrelevant or low-quality results. Do not present pending or rejected results as verified evidence.',
     '- If you need to read, create, update, delete, suggest, confirm, or reject long-term memories or output profiles, request memory-pack.',
-    '- If the user explicitly asks to switch LLM profiles or configure task-level model routing, request settings-pack and emit the required settings tool call. Under the default profile, the 1052 runtime will request exact approval before execution.',
+    '- The main model is configured only on the settings page. Do not offer to switch models or route tasks to another model.',
     '- If the user asks to enable, disable, or change morning brief time, request settings-pack and use agent_morning_brief_update. Under the default profile, the 1052 runtime will request exact approval before execution.',
     '- If you need to read or maintain Wiki, ingest raw files, search structured knowledge pages, write synthesis, or lint Wiki health, request data-pack.',
     '- Wiki is not long-term memory: Wiki stores knowledge assets and source-backed synthesis; memory-pack stores durable user preferences, constraints, identity, and habits.',
