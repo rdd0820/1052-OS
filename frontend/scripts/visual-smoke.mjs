@@ -7,7 +7,7 @@ import { resolveChromiumExecutablePath } from './browser-executable.mjs'
 const baseUrl = process.env.PW_BASE_URL ?? 'http://127.0.0.1:10052'
 const executablePath = resolveChromiumExecutablePath()
 const outputDir = path.resolve('test-results', 'visual-smoke')
-const routes = ['/today', '/chat', '/automations/orchestrations', '/capabilities/skills', '/settings/models']
+const routes = ['/today', '/chat', '/automations/tasks', '/automations/runs', '/capabilities/skills', '/settings/models']
 const viewports = [
   { name: 'desktop', width: 1440, height: 900 },
   { name: 'wide', width: 1920, height: 1080 },

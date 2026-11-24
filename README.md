@@ -1,6 +1,6 @@
 # 1052 OS
 
-1052 OS 是一个本地优先的个人 AI 操作系统。它把对话、工具调用、长期记忆、知识库、自动化任务、本地仓库、SQL 工作台和微信/飞书等外部通道放进同一套可观察、可审批、可恢复的运行时里。
+1052 OS 是一个本地优先的个人 AI 操作系统。它把对话、工具调用、长期记忆、知识库、定时任务和微信/飞书等外部通道放进同一套可观察、可审批、可恢复的运行时里。
 
 当前版本采用「今日控制台」作为首页，核心体验围绕 Agent 对话、Runtime Loop、工具审批和运行检查器展开。
 
@@ -48,12 +48,6 @@
 - 用户消息采用轻量文本布局，Agent 回复支持 Markdown、代码块、表格、数学公式和附件。
 - 长对话提供一键回到底部按钮，阅读历史和跟随最新消息互不干扰。
 
-### 工作区
-
-- 本地仓库索引、文件查看、仓库描述。
-- SQL 数据源、SQL 文件、变量、SSH 服务器、Shell 文件和查询工作台。
-- 编排任务可以连接 SQL、Shell、等待、调试等节点。
-
 ### 知识系统
 
 - Notes、Wiki、PKM、资源库、长期记忆、敏感长期记忆和输出配置。
@@ -64,7 +58,6 @@
 
 - 日历事件与定时任务。
 - 执行记录、通知中心和任务结果回写。
-- 流程编排支持可视化编辑，复杂编辑器按路由懒加载。
 
 ### 能力与连接
 
@@ -78,9 +71,9 @@
 | --- | --- |
 | <img src="./assets/readme/preview-today.png" alt="今日控制台" /> | <img src="./assets/readme/preview-chat.png" alt="Agent 对话" /> |
 
-| 工作区 | 自动化 |
-| --- | --- |
-| <img src="./assets/readme/preview-workspace.png" alt="工作区" /> | <img src="./assets/readme/preview-automations.png" alt="自动化" /> |
+| 自动化 |
+| --- |
+| <img src="./assets/readme/preview-automations.png" alt="自动化" /> |
 
 ## 技术栈
 
@@ -97,7 +90,6 @@
 - React Hook Form
 - CodeMirror
 - TanStack Table / Virtual
-- React Flow
 - Mermaid / KaTeX / Markdown 渲染
 
 ### 后端
@@ -105,7 +97,6 @@
 - Node.js + Express + TypeScript ESM
 - Zod 契约校验
 - better-sqlite3
-- MySQL / SSH2
 - SSE 流式事件
 - 本地 JSON 文件存储
 - 微信、飞书、企业微信通道模块
@@ -120,7 +111,6 @@
 │       ├── modules/agent/      # 1052 Runtime、上下文、工具、审批、历史
 │       ├── modules/channels/   # 微信、飞书、企业微信
 │       ├── modules/settings/   # 模型、Agent、外观等设置
-│       ├── modules/sql/        # SQL 数据源、查询、变量、Shell
 │       ├── modules/wiki/       # Wiki 知识库
 │       ├── modules/memory/     # 长期记忆
 │       └── app.ts              # API 路由装配
@@ -130,8 +120,8 @@
 │       ├── components/         # Shell、Chat、UI primitives
 │       ├── contracts/          # Zod API 契约
 │       ├── data/               # ApiClient
-│       ├── features/           # 工作区、知识、自动化、能力
-│       ├── pages/              # today/chat/workspace/knowledge/...
+│       ├── features/           # 知识、自动化、能力
+│       ├── pages/              # today/chat/knowledge/automations/...
 │       ├── runtime/            # SSE reducer 与 Runtime Trace
 │       ├── state/              # Zustand 状态
 │       └── styles/             # 设计令牌、基础样式、主题
@@ -246,7 +236,7 @@ flowchart LR
   Runtime --> Context["上下文构建与压缩"]
   Runtime --> Tools["工具注册表与审批"]
   Runtime --> LLM["OpenAI-compatible LLM"]
-  Tools --> Local["本地仓库 / SQL / 文件 / 日历 / Wiki / Memory"]
+  Tools --> Local["本地文件 / 日历 / Wiki / Memory"]
   Runtime --> History["chat-history.json"]
   Runtime --> Rollout["1052-rollouts JSONL"]
   Runtime --> Frontend
@@ -363,7 +353,7 @@ sequenceDiagram
 
 | 模式 | 行为 |
 | --- | --- |
-| 默认模式 | 读操作可直接执行，写入、删除、终端、SQL 写入、外部消息等需要审批 |
+| 默认模式 | 读操作可直接执行，写入、删除、终端、外部消息等需要审批 |
 | full access | 用户显式开启后，允许自动确认副作用工具 |
 | read-only | 阻止副作用工具 |
 
@@ -458,9 +448,8 @@ flowchart TD
 | --- | --- |
 | `/today` | 今日控制台 |
 | `/chat` | Agent 对话 |
-| `/workspace/*` | 本地仓库、SQL、数据源、Shell |
 | `/knowledge/*` | Notes、Wiki、Memory、PKM、资源、输出配置 |
-| `/automations/*` | 日历、定时任务、编排、执行记录 |
+| `/automations/*` | 日历、定时任务、执行记录 |
 | `/capabilities/*` | Skills、工具箱、搜索源、外部通道 |
 | `/settings/*` | 模型、Agent 权限、外观、系统维护 |
 
@@ -471,7 +460,7 @@ flowchart TD
 - `runtime/runtime.ts` 管理 SSE 流、取消、Runtime Trace reducer。
 - `components/shell` 负责主导航、命令面板和运行检查器。
 - `styles/tokens.css`、`styles/base.css` 和 CSS Modules 共同组成样式系统。
-- CodeMirror、React Flow、Mermaid 等重模块按路由懒加载。
+- CodeMirror、Mermaid 等重模块按路由懒加载。
 
 ## 后端 API 模块
 
@@ -482,15 +471,12 @@ flowchart TD
 | `/api/settings` | 设置、模型接入、本地模型发现 |
 | `/api/agent` | 对话、SSE、审批、上传、历史、迁移、用量 |
 | `/api/calendar` | 日历与定时任务 |
-| `/api/repository` | 本地仓库 |
 | `/api/notes` | 笔记 |
 | `/api/wiki` | Wiki |
 | `/api/pkm` | PKM 检索 |
 | `/api/memory` | 长期记忆 |
 | `/api/resources` | 资源库 |
 | `/api/output-profiles` | 输出配置 |
-| `/api/sql` | SQL 数据源、查询、文件、变量、服务器 |
-| `/api/orchestration` | 流程编排 |
 | `/api/websearch` | 搜索源和网页读取 |
 | `/api/skills` | Skill 管理 |
 | `/api/uapis` | UAPI 工具 |

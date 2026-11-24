@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { CalendarEvent, ScheduledTask } from '../../contracts/schemas'
-import { calendarApi, orchestrationApi } from '../../data/api'
+import { calendarApi } from '../../data/api'
 import { DataTable } from '../../components/ui/DataTable'
 import { AsyncState, Badge, Button, Dialog, Field, Input, Select, Surface, Switch, Textarea, uiStyles } from '../../components/ui'
 import pageStyles from '../../pages/pages.module.css'
@@ -325,14 +325,9 @@ export function RunsView() {
   const [taskId, setTaskId] = useState('')
   const tasks = useQuery({ queryKey: ['calendar', 'tasks'], queryFn: () => calendarApi.tasks() })
   const runs = useQuery({ queryKey: ['calendar', 'runs', taskId], queryFn: () => calendarApi.runs(taskId || undefined), refetchInterval: 8000 })
-  const workflows = useQuery({ queryKey: ['orchestration'], queryFn: orchestrationApi.list })
-  const [workflowId, setWorkflowId] = useState('')
-  const selectedWorkflow = workflowId || workflows.data?.[0]?.id || ''
-  const logs = useQuery({ queryKey: ['orchestration', selectedWorkflow, 'logs'], queryFn: () => orchestrationApi.logs(selectedWorkflow), enabled: Boolean(selectedWorkflow), refetchInterval: 8000 })
   const runRows = (runs.data ?? []) as Array<Record<string, unknown>>
-  const workflowLogs = (logs.data ?? []) as Array<Record<string, unknown>>
   return (
-    <div className={pageStyles.grid2}>
+    <div>
       <Surface
         title="任务执行记录"
         action={<Select value={taskId} onChange={(event) => setTaskId(event.target.value)} aria-label="任务筛选"><option value="">全部任务</option>{tasks.data?.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</Select>}
@@ -344,22 +339,6 @@ export function RunsView() {
                 <time>{dateLabel(run.startedAt ?? run.createdAt)}</time>
                 <div><strong>{text(run.title ?? run.taskTitle, '任务运行')}</strong><p>{text(run.summary ?? run.error ?? run.message, '没有输出摘要')}</p></div>
                 <Badge tone={text(run.status) === 'failed' ? 'danger' : text(run.status) === 'success' ? 'success' : 'default'}>{text(run.status, 'unknown')}</Badge>
-              </article>
-            ))}
-          </div>
-        </AsyncState>
-      </Surface>
-      <Surface
-        title="流程执行日志"
-        action={<Select value={selectedWorkflow} onChange={(event) => setWorkflowId(event.target.value)} aria-label="流程筛选">{workflows.data?.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}</Select>}
-      >
-        <AsyncState loading={logs.isLoading || workflows.isLoading} error={logs.error || workflows.error} empty={!workflowLogs.length}>
-          <div className={styles.runPanel}>
-            {workflowLogs.slice(0, 30).map((log, index) => (
-              <article key={String(log.id ?? index)} className={styles.runLine}>
-                <time>{dateLabel(log.timestamp ?? log.createdAt)}</time>
-                <div><strong>{text(log.nodeName ?? log.step ?? log.type, '流程步骤')}</strong><p>{text(log.message ?? log.summary ?? log.error, JSON.stringify(log))}</p></div>
-                <Badge tone={text(log.status) === 'failed' || text(log.level) === 'error' ? 'danger' : text(log.status) === 'success' ? 'success' : 'default'}>{text(log.status ?? log.level, 'log')}</Badge>
               </article>
             ))}
           </div>

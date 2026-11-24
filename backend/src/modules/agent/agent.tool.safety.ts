@@ -66,8 +66,6 @@ const WRITE_OVERRIDES: ReadonlySet<string> = new Set([
   'terminal_interrupt',
   // Runs Claude Code CLI which may spawn subprocesses, edit files, commit git, etc.
   'claude_code',
-  // Executes SQL against configured data sources; the SQL itself can be DDL/DML.
-  'sql_query',
   // Calls external UAPIs; many APIs are stateful or quota-consuming.
   'uapis_call',
   // Generates an image, consuming paid quota and producing a file on disk.
@@ -91,13 +89,13 @@ const WRITE_PATTERNS: readonly RegExp[] = [
   /(^|_)(install|import|sync|mount|index|pause|resume|strike|publish|archive|restore|activate|confirm|reject|approve|generate|interrupt|cancel)(_|$)/,
   // Common verb suffixes that imply mutation.
   // e.g. filesystem_write_file, memory_create, schedule_update_task, memory_delete,
-  //      sql_datasource_create, wiki_page_write, wiki_log_append, wiki_ingest_commit,
+  //      wiki_page_write, wiki_log_append, wiki_ingest_commit,
   //      wiki_lint_fix, wiki_index_rebuild, wiki_query_writeback
   /_(write|create|update|delete|commit|fix|rebuild|writeback|upload|reset|drop|purge|truncate)(_|$)/,
   // e.g. filesystem_replace_in_file, filesystem_insert_lines, filesystem_move_path,
   //      filesystem_copy_path, wiki_page_append_section, filesystem_append_to_file
   /_(replace|insert|move|copy|append)(_|$)/,
-  // e.g. sql_shell_file_execute, terminal_run, orchestration_execute, schedule_run_task
+  // e.g. terminal_run, schedule_run_task
   /_(execute|run)(_|$)/,
   // e.g. feishu_send_message
   /_send(_|$)/,

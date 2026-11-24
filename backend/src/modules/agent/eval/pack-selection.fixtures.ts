@@ -73,12 +73,9 @@ export const PACK_SELECTION_FIXTURES: PackSelectionCase[] = [
   { id: 35, input: '在 PKM 中搜索 "项目架构"', expectedPacks: ['plan-pack'], tag: 'plan' },
 
   // ── data-pack ──────────────────────────────────────────────────────
-  { id: 36, input: '列出所有 SQL 数据源', expectedPacks: ['data-pack'], tag: 'data' },
-  { id: 37, input: '执行 SQL: SELECT * FROM users LIMIT 10', expectedPacks: ['data-pack'], tag: 'data' },
   { id: 38, input: '查看 Wiki 知识库的健康状态', expectedPacks: ['data-pack'], tag: 'data' },
   { id: 39, input: '在 Wiki 中搜索 "API 设计规范"', expectedPacks: ['data-pack'], tag: 'data' },
   { id: 40, input: '列出我的笔记', expectedPacks: ['data-pack'], tag: 'data' },
-  { id: 41, input: '帮我创建一个 MySQL 数据源连接', expectedPacks: ['data-pack'], tag: 'data' },
 
   // ── channel-pack ───────────────────────────────────────────────────
   { id: 42, input: '把这份早报渲染成微信文本格式', expectedPacks: ['channel-pack'], tag: 'channel' },

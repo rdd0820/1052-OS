@@ -115,26 +115,6 @@ const chatHistory = {
   ],
 }
 
-const datasource = { id: 'ds-1', name: '本地 SQLite', type: 'sqlite', host: '', port: 0, user: '', database: '1052', filePath: 'data/local.db' }
-const workflow = {
-  id: 'workflow-1',
-  name: '资料整理流水线',
-  description: '抓取资源、写入知识库并生成运行摘要。',
-  nodes: [
-    { id: 'node-load', name: '读取资源', type: 'load', enabled: true, position: { x: 80, y: 120 } },
-    { id: 'node-sql', name: '写入索引', type: 'sql', enabled: true, position: { x: 330, y: 120 } },
-    { id: 'node-shell', name: '刷新缓存', type: 'shell', enabled: true, position: { x: 580, y: 120 } },
-    { id: 'node-debug', name: '输出摘要', type: 'debug', enabled: true, position: { x: 830, y: 120 } },
-  ],
-  edges: [
-    { id: 'e1', source: 'node-load', target: 'node-sql' },
-    { id: 'e2', source: 'node-sql', target: 'node-shell' },
-    { id: 'e3', source: 'node-shell', target: 'node-debug' },
-  ],
-  createdAt: now - 3 * 86400_000,
-  updatedAt: now,
-}
-
 function json(route, body, status = 200) {
   return route.fulfill({
     status,
@@ -170,20 +150,6 @@ async function installApiMocks(page) {
     if (apiPath === '/notifications') return json(route, sampleNotifications)
     if (apiPath === '/notifications/unread-count') return json(route, { unread: 2 })
     if (apiPath === '/memory/summary') return json(route, { counts: { confirmed: 2, active: 2, suggestions: 1, secure: 0, highPriority: 1 }, recent: sampleMemory, secure: [] })
-    if (apiPath === '/sql/datasources') return json(route, [datasource])
-    if (apiPath === '/sql/files') return json(route, [{ id: 'sql-1', name: '今日任务统计.sql', datasourceId: datasource.id, content: 'select status, count(*) as total from tasks group by status;', updatedAt: now }])
-    if (apiPath === '/sql/query' && method === 'POST') return json(route, { columns: ['status', 'total'], rows: [{ status: 'ready', total: 12 }, { status: 'pending', total: 2 }], rowCount: 2, truncated: false })
-    if (apiPath === '/sql/variables') return json(route, [])
-    if (apiPath === '/sql/servers') return json(route, [])
-    if (apiPath === '/sql/shell-files') return json(route, [])
-    if (apiPath === '/orchestration') return json(route, [workflow])
-    if (/^\/orchestration\/[^/]+\/active$/.test(apiPath)) return json(route, { active: false })
-    if (/^\/orchestration\/[^/]+\/logs$/.test(apiPath)) {
-      return json(route, [
-        { id: 'log-1', timestamp: now - 180_000, status: 'success', nodeName: '读取资源', message: '载入 24 条资源' },
-        { id: 'log-2', timestamp: now - 120_000, status: 'success', nodeName: '写入索引', message: '索引刷新完成' },
-      ])
-    }
     if (apiPath === '/health') return json(route, { ok: true, ts: now })
 
     return json(route, {})
@@ -234,11 +200,7 @@ const shots = [
   { file: 'preview-chat.png', route: '/chat', width: 1440, height: 900, waitFor: async (page) => {
     await page.getByText('今日行动清单').waitFor({ timeout: 20_000 })
   } },
-  { file: 'preview-workspace.png', route: '/workspace/sql', width: 1440, height: 900, afterLoad: async (page) => {
-    await page.getByRole('button', { name: /运行查询/ }).click()
-    await page.getByRole('cell', { name: 'ready' }).waitFor({ timeout: 15_000 })
-  } },
-  { file: 'preview-automations.png', route: '/automations/orchestrations', width: 1440, height: 900, selector: '.react-flow__node' },
+  { file: 'preview-automations.png', route: '/automations/tasks', width: 1440, height: 900 },
 ]
 
 await fs.mkdir(outputDir, { recursive: true })

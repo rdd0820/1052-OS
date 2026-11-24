@@ -11,9 +11,6 @@ const BASE_READ_PACK_TOOL_NAMES = [
 
 const PACK_TOOL_NAMES: Record<Exclude<AgentPackName, 'base-read-pack'>, readonly string[]> = {
   'repo-pack': [
-    'repository_list_repos',
-    'repository_read_repo',
-    'repository_read_file',
     'terminal_status',
     'terminal_set_cwd',
     'terminal_run_readonly',
@@ -105,36 +102,6 @@ const PACK_TOOL_NAMES: Record<Exclude<AgentPackName, 'base-read-pack'>, readonly
     'notes_read_note',
     'resources_list',
     'resources_read',
-    'sql_datasource_list',
-    'sql_file_list',
-    'sql_datasource_create',
-    'sql_datasource_update',
-    'sql_datasource_delete',
-    'sql_datasource_test',
-    'sql_file_create',
-    'sql_file_update',
-    'sql_file_delete',
-    'sql_query',
-    'sql_variable_list',
-    'sql_variable_create',
-    'sql_variable_update',
-    'sql_variable_delete',
-    'sql_server_list',
-    'sql_server_create',
-    'sql_server_update',
-    'sql_server_delete',
-    'sql_server_test',
-    'sql_shell_file_list',
-    'sql_shell_file_create',
-    'sql_shell_file_update',
-    'sql_shell_file_delete',
-    'sql_shell_file_execute',
-    'orchestration_list',
-    'orchestration_create',
-    'orchestration_update',
-    'orchestration_delete',
-    'orchestration_execute',
-    'orchestration_logs',
     'wiki_summary',
     'wiki_raw_list',
     'wiki_raw_read',
@@ -203,7 +170,7 @@ export function getToolNamesForMountedPacks(packs: readonly AgentPackName[]): st
 export function describePackForRouting(pack: Exclude<AgentPackName, 'base-read-pack'>) {
   switch (pack) {
     case 'repo-pack':
-      return '本地仓库、项目文件读取、终端检查和本地执行。适合读代码、看目录、查 git diff/log/status，也适合在权限允许时创建/修改文件、运行脚本、执行构建或测试。包含 claude_code 工具，可调用 Claude Code CLI 进行复杂编程任务，支持多轮会话。'
+      return '本地文件读取、终端检查和本地执行。适合读代码、看目录、查 git diff/log/status，也适合在权限允许时创建/修改文件、运行脚本、执行构建或测试。包含 claude_code 工具，可调用 Claude Code CLI 进行复杂编程任务，支持多轮会话。'
     case 'image-pack':
       return '内置图像生成和 OCR 文字识别能力。用户要求生成、绘制、设计、渲染图片/插画/海报/Logo/封面/壁纸/头像/视觉稿时调用 image_generate；用户要求识别、提取、读取图片中的文字时调用 ocr_recognize。不要为了找图像生成 API、模型、在线工具、素材图或提示词示例而先走搜索。'
     case 'search-pack':
@@ -217,7 +184,7 @@ export function describePackForRouting(pack: Exclude<AgentPackName, 'base-read-p
     case 'plan-pack':
       return '日程创建/查询/更新/删除、定时任务创建/查询/更新/删除/暂停/恢复/立即运行、PKM 知识检索。日程写入、定时任务写入、任务立即运行和 PKM 索引重建需用户确认。'
     case 'data-pack':
-      return '笔记、资源列表、SQL 数据源管理（MySQL/Oracle/SQLite/Hive）、SQL 文件管理、SQL 查询执行、SQL 变量管理、SSH 服务器管理、Shell 脚本管理及执行、SQL 编排（DAG 工作流）、Wiki raw 原始资料、结构化知识页、综合分析、Wiki lint 健康检查和知识沉淀工具。SQL 写入、服务器操作、Shell 执行和 Wiki 写入默认需要用户确认。'
+      return '笔记、资源列表、Wiki raw 原始资料、结构化知识页、综合分析、Wiki lint 健康检查和知识沉淀工具。Wiki 写入默认需要用户确认。'
     case 'channel-pack':
       return '外部通道格式渲染和飞书工作区工具。包含 Intel Brief 的 Markdown、飞书卡片、微信文本和企业微信 Markdown 渲染，以及飞书日历、任务等工作区读取能力。官方微信 Bot、飞书和企业微信入站消息由后端通道服务自动回写。'
   }

@@ -30,12 +30,6 @@ const readOnlyApiChecks = [
   '/api/output-profiles',
   '/api/websearch/engines',
   '/api/skills',
-  '/api/sql/datasources',
-  '/api/sql/files',
-  '/api/sql/variables',
-  '/api/sql/servers',
-  '/api/sql/shell-files',
-  '/api/orchestration',
   '/api/uapis/catalog',
   '/api/channels/wechat/status',
   '/api/channels/wechat/accounts',
@@ -48,9 +42,9 @@ const readOnlyApiChecks = [
 const pages = [
   { route: '/today', waitFor: 'h1' },
   { route: '/chat', waitFor: 'textarea' },
-  { route: '/workspace/sql', waitFor: 'h1' },
   { route: '/knowledge/resources', waitFor: 'h1' },
   { route: '/automations/tasks', waitFor: 'h1' },
+  { route: '/automations/runs', waitFor: 'h1' },
   { route: '/capabilities/skills', waitFor: 'h1' },
   { route: '/settings/models', waitFor: 'h1' },
 ]

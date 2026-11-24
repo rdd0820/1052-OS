@@ -189,30 +189,6 @@ export const notificationSchema = z
   })
   .passthrough()
 
-export const repositorySchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    path: z.string(),
-    relativePath: z.string().default(''),
-    description: z.string().default(''),
-    isGit: z.boolean(),
-    branch: z.string().default(''),
-    status: z.enum(['clean', 'dirty', 'unknown']),
-    changes: z.number(),
-    language: z.string().default(''),
-    updatedAt: z.number(),
-  })
-  .passthrough()
-
-export const repositoryDetailSchema = z
-  .object({
-    repository: repositorySchema,
-    readme: z.object({ fileName: z.string(), content: z.string() }).nullable(),
-    tree: z.array(looseObject),
-  })
-  .passthrough()
-
 export const noteTreeSchema: z.ZodType<NoteTreeNode> = z.lazy(() =>
   z
     .object({
@@ -237,88 +213,6 @@ export type NoteTreeNode = {
 
 export const noteFileSchema = z
   .object({ path: z.string(), name: z.string(), content: z.string(), size: z.number(), updatedAt: z.number() })
-  .passthrough()
-
-export const dataSourceSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    type: z.enum(['mysql', 'oracle', 'sqlite', 'hive']),
-    host: z.string().default(''),
-    port: z.number().default(0),
-    user: z.string().default(''),
-    database: z.string().default(''),
-    filePath: z.string().default(''),
-  })
-  .passthrough()
-
-export const sqlFileSchema = z
-  .object({ id: z.string(), name: z.string(), datasourceId: z.string(), content: z.string(), updatedAt: z.number() })
-  .passthrough()
-
-export const sqlVariableSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    valueType: z.enum(['static', 'sql']),
-    value: z.string(),
-    datasourceId: z.string().default(''),
-  })
-  .passthrough()
-
-export const serverSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    host: z.string(),
-    port: z.number(),
-    user: z.string(),
-    authType: z.enum(['password', 'privateKey']),
-    description: z.string().default(''),
-  })
-  .passthrough()
-
-export const shellFileSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    serverId: z.string(),
-    content: z.string(),
-    description: z.string().default(''),
-    updatedAt: z.number(),
-  })
-  .passthrough()
-
-export const orchestrationNodeSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    type: z.enum(['sql', 'debug', 'load', 'wait', 'shell', 'loop']),
-    enabled: z.boolean(),
-    position: z.object({ x: z.number(), y: z.number() }).optional(),
-  })
-  .passthrough()
-
-export const orchestrationSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string().default(''),
-    nodes: z.array(orchestrationNodeSchema),
-    edges: z.array(z.object({ id: z.string(), source: z.string(), target: z.string() }).passthrough()),
-    createdAt: z.number(),
-    updatedAt: z.number(),
-  })
-  .passthrough()
-
-export const orchestrationExecutionSchema = z
-  .object({
-    id: z.string(),
-    orchestrationId: z.string(),
-    orchestrationName: z.string(),
-    status: z.enum(['success', 'failed', 'warning', 'running']),
-    logs: z.array(looseObject),
-  })
   .passthrough()
 
 export const memorySchema = z
@@ -643,14 +537,7 @@ export type PublicSettings = z.infer<typeof settingsSchema>
 export type CalendarEvent = z.infer<typeof calendarEventSchema>
 export type ScheduledTask = z.infer<typeof scheduledTaskSchema>
 export type AppNotification = z.infer<typeof notificationSchema>
-export type Repository = z.infer<typeof repositorySchema>
 export type NoteFile = z.infer<typeof noteFileSchema>
-export type DataSource = z.infer<typeof dataSourceSchema>
-export type SqlFile = z.infer<typeof sqlFileSchema>
-export type SqlVariable = z.infer<typeof sqlVariableSchema>
-export type Server = z.infer<typeof serverSchema>
-export type ShellFile = z.infer<typeof shellFileSchema>
-export type Orchestration = z.infer<typeof orchestrationSchema>
 export type MemoryItem = z.infer<typeof memorySchema>
 export type ResourceItem = z.infer<typeof resourceSchema>
 export type WikiPage = z.infer<typeof wikiPageSchema>

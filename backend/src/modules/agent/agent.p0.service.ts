@@ -102,7 +102,7 @@ function getRoutingPrompt() {
     '- Start in P0 with no business tools.',
     '- If the user asks to generate, draw, design, render, create an image, illustration, poster, logo concept, cover, visual, wallpaper, avatar, or similar visual output, request image-pack and use image_generate. This route has priority over search-pack and UAPIs for image creation.',
     '- Do not search the web for image generation APIs, tools, model docs, stock images, or prompt examples when the user simply wants 1052 OS to create an image. Search only if the user explicitly asks for research/reference material, existing images, or current facts.',
-    '- If you need local code, local files, repository inspection, file creation/modification, script execution, build/test commands, or terminal execution, request repo-pack.',
+    '- If you need local code or files, file creation/modification, script execution, build/test commands, or terminal execution, request repo-pack.',
     '- terminal_run_readonly is only for allow-listed read-only inspection. Use terminal_run for scripts, file writes, builds, tests, and other commands that can modify local state when permission allows.',
     '- For news, current affairs, morning briefs, market moves, global intelligence, geopolitics, finance, tech-sector intelligence, or cross-sector causal analysis, first consider the installed intel-center Skill: request skill-pack, read intel-center, use intel_center_collect to collect raw intelligence, then analyze it following the Skill workflow.',
     '- intel_brief_format in channel-pack formats an already structured Intel Brief for Markdown, Feishu card, WeChat text, or WeCom markdown. It does not collect intelligence and does not send messages.',

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
-const routes = ['/today', '/chat', '/automations/orchestrations', '/capabilities/skills', '/settings/models']
+const routes = ['/today', '/chat', '/automations/tasks', '/capabilities/skills', '/settings/models']
 
 test.setTimeout(120_000)
 
@@ -20,8 +20,8 @@ test.describe('1052 OS shell', () => {
         ? page.getByRole('heading', { name: '现在想完成什么？' })
         : route === '/chat'
           ? page.locator('textarea')
-          : route === '/automations/orchestrations'
-            ? page.getByText('选择画布节点后查看参数')
+          : route === '/automations/tasks'
+            ? page.getByRole('heading', { name: '定时任务' })
             : route === '/capabilities/skills'
               ? page.getByRole('heading', { name: '已安装 Skills' })
               : page.getByRole('heading', { name: '主模型' })

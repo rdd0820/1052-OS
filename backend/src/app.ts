@@ -6,7 +6,6 @@ import { config } from './config.js'
 import { settingsRouter } from './modules/settings/settings.routes.js'
 import { agentRouter } from './modules/agent/agent.routes.js'
 import { calendarRouter } from './modules/calendar/calendar.routes.js'
-import { repositoryRouter } from './modules/repository/repository.routes.js'
 import { notesRouter } from './modules/notes/notes.routes.js'
 import { resourcesRouter } from './modules/resources/resources.routes.js'
 import { websearchRouter } from './modules/websearch/websearch.routes.js'
@@ -14,8 +13,6 @@ import { notificationsRouter } from './modules/notifications/notifications.route
 import { skillsRouter } from './modules/skills/skills.routes.js'
 import { memoryRouter } from './modules/memory/memory.routes.js'
 import { wechatRouter } from './modules/channels/wechat/wechat.routes.js'
-import { sqlRouter } from './modules/sql/sql.routes.js'
-import { orchestrationRouter } from './modules/orchestration/orchestration.routes.js'
 import { wecomRouter } from './modules/channels/wecom/wecom.routes.js'
 import { uapisRouter } from './modules/uapis/uapis.routes.js'
 import { runtimeLogsRouter } from './modules/runtime-logs/runtime-logs.routes.js'
@@ -59,7 +56,6 @@ export function createApp(): Express {
   app.use('/api/settings', settingsRouter)
   app.use('/api/agent', agentRouter)
   app.use('/api/calendar', calendarRouter)
-  app.use('/api/repository', repositoryRouter)
   app.use('/api/notes', notesRouter)
   app.use('/api/resources', resourcesRouter)
   app.use('/api/wiki', wikiRouter)
@@ -70,8 +66,6 @@ export function createApp(): Express {
   app.use('/api/skills', skillsRouter)
   app.use('/api/memory', memoryRouter)
   app.use('/api/channels/wechat', wechatRouter)
-  app.use('/api/sql', sqlRouter)
-  app.use('/api/orchestration', orchestrationRouter)
   app.use('/api/uapis', uapisRouter)
   app.use('/api/logs', runtimeLogsRouter)
   app.use('/api/channels/wecom', wecomRouter)

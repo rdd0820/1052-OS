@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   calendarEventSchema,
   healthStatusSchema,
-  orchestrationSchema,
   researchStateSchema,
   runtimeEventSchema,
   scheduledTaskSchema,
@@ -67,37 +66,11 @@ describe('frontend API contracts', () => {
     })
   })
 
-  it('preserves orchestration node and workflow passthrough fields', () => {
-    const workflow = orchestrationSchema.parse({
-      id: 'flow-1',
-      name: '数据同步',
-      nodes: [
-        {
-          id: 'n1',
-          name: '查询',
-          type: 'sql',
-          enabled: true,
-          datasourceId: 'main',
-          sql: 'select 1',
-          position: { x: 20, y: 40 },
-        },
-      ],
-      edges: [],
-      createdAt: 1,
-      updatedAt: 2,
-      executionPolicy: 'manual',
-    })
-
-    expect(workflow.description).toBe('')
-    expect(workflow.executionPolicy).toBe('manual')
-    expect(workflow.nodes[0]).toMatchObject({ datasourceId: 'main', sql: 'select 1' })
-  })
-
   it('parses runtime loop events as an extensible stream payload', () => {
     const event = runtimeEventSchema.parse({
       type: 'tool-call-finished',
       callId: 'call-1',
-      name: 'sql_query',
+      name: 'terminal_run',
       ok: true,
       resultPreview: '3 rows',
       mountedPacks: ['workspace-pack'],

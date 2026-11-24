@@ -21,9 +21,7 @@ const executablePath = resolveChromiumExecutablePath()
 const pages = [
   '/today',
   '/chat',
-  '/workspace/sql',
   '/knowledge/resources',
-  '/automations/orchestrations',
   '/capabilities/skills',
   '/settings/models',
 ]
@@ -260,7 +258,6 @@ try {
   frontendServer = startProductionStaticServer(backendUrl)
   await listen(frontendServer, frontendPort)
   await waitForUrl(`${frontendUrl}/api/health`, 15_000)
-  await waitForUrl(`${frontendUrl}/workspace/sql`, 15_000)
 
   const failures = await checkPages(frontendUrl)
   if (failures.length) throw new Error(`production page checks failed:\n${failures.join('\n')}`)

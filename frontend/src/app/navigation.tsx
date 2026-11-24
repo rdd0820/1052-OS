@@ -6,25 +6,18 @@ import {
   BrainCircuit,
   CalendarDays,
   Cable,
-  CodeXml,
-  Database,
-  FileCode2,
   FileText,
-  FolderGit2,
   Home,
   Library,
   MemoryStick,
-  Network,
   NotebookText,
   PackageSearch,
   RadioTower,
   Search,
   ScanSearch,
-  Server,
   Settings,
   SlidersHorizontal,
   Sparkles,
-  TerminalSquare,
   Workflow,
   Wrench,
   type LucideIcon,
@@ -38,7 +31,7 @@ export type NavEntry = {
 }
 
 export type NavSection = NavEntry & {
-  id: 'today' | 'chat' | 'workspace' | 'knowledge' | 'automations' | 'capabilities' | 'settings'
+  id: 'today' | 'chat' | 'knowledge' | 'automations' | 'capabilities' | 'settings'
   items: NavEntry[]
 }
 
@@ -59,21 +52,6 @@ export const navSections: NavSection[] = [
     path: '/chat',
     icon: Bot,
     items: [],
-  },
-  {
-    id: 'workspace',
-    label: '工作区',
-    path: '/workspace',
-    icon: CodeXml,
-    items: [
-      { label: '本地仓库', path: '/workspace/repositories', icon: FolderGit2 },
-      { label: 'SQL 工作台', path: '/workspace/sql', icon: Database },
-      { label: '数据源', path: '/workspace/datasources', icon: Cable },
-      { label: 'SQL 文件', path: '/workspace/sql-files', icon: FileCode2 },
-      { label: '变量', path: '/workspace/variables', icon: SlidersHorizontal },
-      { label: '远程服务器', path: '/workspace/servers', icon: Server },
-      { label: 'Shell 文件', path: '/workspace/shell-files', icon: TerminalSquare },
-    ],
   },
   {
     id: 'knowledge',
@@ -98,7 +76,6 @@ export const navSections: NavSection[] = [
     items: [
       { label: '日历', path: '/automations/calendar', icon: CalendarDays },
       { label: '定时任务', path: '/automations/tasks', icon: Activity },
-      { label: '流程编排', path: '/automations/orchestrations', icon: Network },
       { label: '执行记录', path: '/automations/runs', icon: RadioTower },
     ],
   },

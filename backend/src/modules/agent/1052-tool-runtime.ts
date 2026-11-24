@@ -4,8 +4,6 @@ import { classifyToolSafety, type ToolSafetyClass } from './agent.tool.safety.js
 
 const SERIAL_TOOL_NAMES: ReadonlySet<string> = new Set([
   'claude_code',
-  'orchestration_execute',
-  'sql_query',
   'terminal_interrupt',
   'terminal_run',
 ])

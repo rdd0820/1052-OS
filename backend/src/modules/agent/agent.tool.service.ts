@@ -18,7 +18,7 @@ import { runtime1052ToolRegistry } from './1052-tool-registry.js'
  * occupy when injected back into the LLM conversation. Hit this and the
  * content is replaced with a truncated preview plus a `_hint` that nudges
  * the model to re-issue a narrower query. Without this cap a single
- * `sql_query`, `websearch_read_page`, or unbounded list dump can push the
+ * `websearch_read_page` or unbounded list dump can push the
  * next turn's prompt past the model's context window — typically surfacing
  * as either `413`/`context_length_exceeded` errors or silent information
  * loss on the model's side.

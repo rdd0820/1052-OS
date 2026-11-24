@@ -3,7 +3,6 @@ import {
   agentSettingsSchema,
   calendarEventSchema,
   chatHistorySchema,
-  dataSourceSchema,
   healthStatusSchema,
   looseObjectSchema,
   modelSettingsSchema,
@@ -12,7 +11,6 @@ import {
   noteFileSchema,
   noteTreeSchema,
   notificationSchema,
-  orchestrationSchema,
   outputProfileSchema,
   pkmSearchSchema,
   pkmSummarySchema,
@@ -24,17 +22,11 @@ import {
   researchSessionSchema,
   researchSnapshotSchema,
   researchStateSchema,
-  repositoryDetailSchema,
-  repositorySchema,
   resourceSchema,
   scheduledTaskSchema,
   searchSourcesSchema,
-  serverSchema,
   settingsSchema,
-  shellFileSchema,
   skillSchema,
-  sqlFileSchema,
-  sqlVariableSchema,
   storedMessageSchema,
   uapiCatalogSchema,
   uapiItemSchema,
@@ -122,25 +114,6 @@ export const notificationsApi = {
   context: (id: string) => request(`/notifications/${encodeURIComponent(id)}/context`, { schema: looseObjectSchema }),
 }
 
-export const repositoryApi = {
-  config: () => request('/repository/config', { schema: looseObjectSchema }),
-  updateConfig: (rootPath: string) =>
-    request('/repository/config', { method: 'PUT', body: { rootPath }, schema: looseObjectSchema }),
-  list: () => request('/repository/repos', { schema: z.array(repositorySchema) }),
-  detail: (id: string) => request(`/repository/repos/${encodeURIComponent(id)}`, { schema: repositoryDetailSchema }),
-  file: (id: string, path: string) =>
-    request(`/repository/repos/${encodeURIComponent(id)}/file${queryString({ path })}`, { schema: looseObjectSchema }),
-  add: (path: string) => request('/repository/repos', { method: 'POST', body: { path }, schema: repositorySchema }),
-  remove: (id: string) =>
-    request(`/repository/repos/${encodeURIComponent(id)}`, { method: 'DELETE', schema: looseObjectSchema }),
-  updateDescription: (id: string, content: string) =>
-    request(`/repository/repos/${encodeURIComponent(id)}/description`, {
-      method: 'PUT',
-      body: { content },
-      schema: repositoryDetailSchema,
-    }),
-}
-
 export const notesApi = {
   config: () => request('/notes/config', { schema: looseObjectSchema }),
   useDefault: () => request('/notes/config/default', { method: 'POST', body: {}, schema: looseObjectSchema }),
@@ -153,64 +126,6 @@ export const notesApi = {
   deleteFile: (path: string) => request(`/notes/file${queryString({ path })}`, { method: 'DELETE', schema: okSchema }),
   createFolder: (path: string, name: string) =>
     request('/notes/folder', { method: 'POST', body: { path, name }, schema: okSchema }),
-}
-
-export const sqlApi = {
-  dataSources: () => request('/sql/datasources', { schema: z.array(dataSourceSchema) }),
-  createDataSource: (body: unknown) => request('/sql/datasources', { method: 'POST', body, schema: dataSourceSchema }),
-  updateDataSource: (id: string, body: unknown) =>
-    request(`/sql/datasources/${encodeURIComponent(id)}`, { method: 'PUT', body, schema: dataSourceSchema }),
-  deleteDataSource: (id: string) => request(`/sql/datasources/${encodeURIComponent(id)}`, { method: 'DELETE', schema: okSchema }),
-  testDataSource: (id: string) =>
-    request(`/sql/datasources/${encodeURIComponent(id)}/test`, { method: 'POST', body: {}, schema: okSchema }),
-  files: () => request('/sql/files', { schema: z.array(sqlFileSchema) }),
-  createFile: (body: unknown) => request('/sql/files', { method: 'POST', body, schema: sqlFileSchema }),
-  updateFile: (id: string, body: unknown) =>
-    request(`/sql/files/${encodeURIComponent(id)}`, { method: 'PUT', body, schema: sqlFileSchema }),
-  deleteFile: (id: string) => request(`/sql/files/${encodeURIComponent(id)}`, { method: 'DELETE', schema: okSchema }),
-  query: (datasourceId: string, sql: string, limit = 200) =>
-    request('/sql/query', {
-      method: 'POST',
-      body: { datasourceId, sql, limit },
-      schema: z.object({ columns: z.array(z.string()), rows: unknownArray, rowCount: z.number(), truncated: z.boolean() }).passthrough(),
-    }),
-  variables: () => request('/sql/variables', { schema: z.array(sqlVariableSchema) }),
-  createVariable: (body: unknown) => request('/sql/variables', { method: 'POST', body, schema: sqlVariableSchema }),
-  updateVariable: (id: string, body: unknown) =>
-    request(`/sql/variables/${encodeURIComponent(id)}`, { method: 'PUT', body, schema: sqlVariableSchema }),
-  deleteVariable: (id: string) => request(`/sql/variables/${encodeURIComponent(id)}`, { method: 'DELETE', schema: okSchema }),
-  servers: () => request('/sql/servers', { schema: z.array(serverSchema) }),
-  createServer: (body: unknown) => request('/sql/servers', { method: 'POST', body, schema: serverSchema }),
-  updateServer: (id: string, body: unknown) =>
-    request(`/sql/servers/${encodeURIComponent(id)}`, { method: 'PUT', body, schema: serverSchema }),
-  deleteServer: (id: string) => request(`/sql/servers/${encodeURIComponent(id)}`, { method: 'DELETE', schema: okSchema }),
-  testServer: (id: string) => request(`/sql/servers/${encodeURIComponent(id)}/test`, { method: 'POST', body: {}, schema: okSchema }),
-  shellFiles: () => request('/sql/shell-files', { schema: z.array(shellFileSchema) }),
-  createShellFile: (body: unknown) => request('/sql/shell-files', { method: 'POST', body, schema: shellFileSchema }),
-  updateShellFile: (id: string, body: unknown) =>
-    request(`/sql/shell-files/${encodeURIComponent(id)}`, { method: 'PUT', body, schema: shellFileSchema }),
-  executeShellFile: (id: string) =>
-    request(`/sql/shell-files/${encodeURIComponent(id)}/execute`, { method: 'POST', body: {}, schema: looseObjectSchema }),
-  deleteShellFile: (id: string) => request(`/sql/shell-files/${encodeURIComponent(id)}`, { method: 'DELETE', schema: okSchema }),
-}
-
-export const orchestrationApi = {
-  list: () => request('/orchestration', { schema: z.array(orchestrationSchema) }),
-  create: (body: unknown) => request('/orchestration', { method: 'POST', body, schema: orchestrationSchema }),
-  update: (id: string, body: unknown) =>
-    request(`/orchestration/${encodeURIComponent(id)}`, { method: 'PUT', body, schema: orchestrationSchema }),
-  remove: (id: string) => request(`/orchestration/${encodeURIComponent(id)}`, { method: 'DELETE', schema: okSchema }),
-  execute: (id: string) =>
-    request(`/orchestration/${encodeURIComponent(id)}/execute`, {
-      method: 'POST',
-      body: {},
-      schema: z.object({ executionId: z.string() }),
-    }),
-  progress: (id: string, executionId: string) =>
-    request(`/orchestration/${encodeURIComponent(id)}/progress/${encodeURIComponent(executionId)}`, { schema: looseObjectSchema }),
-  active: (id: string) => request(`/orchestration/${encodeURIComponent(id)}/active`, { schema: looseObjectSchema }),
-  logs: (id: string) => request(`/orchestration/${encodeURIComponent(id)}/logs`, { schema: unknownArray }),
-  stop: (id: string) => request(`/orchestration/${encodeURIComponent(id)}/stop`, { method: 'POST', body: {}, schema: looseObjectSchema }),
 }
 
 export const memoryApi = {

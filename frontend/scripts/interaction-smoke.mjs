@@ -130,45 +130,18 @@ function resourceFrom(body, index) {
   }
 }
 
-function workflowFrom(body, index) {
-  const now = Date.now()
-  return {
-    id: body.id || `workflow-${index}`,
-    name: body.name || `流程 ${index}`,
-    description: body.description || '',
-    nodes: Array.isArray(body.nodes) ? body.nodes : [],
-    edges: Array.isArray(body.edges) ? body.edges : [],
-    createdAt: body.createdAt || now,
-    updatedAt: now,
-  }
-}
-
-const smokeDatasource = {
-  id: 'ds-1',
-  name: '本地 SQLite',
-  type: 'sqlite',
-  host: '',
-  port: 0,
-  user: '',
-  database: '',
-  filePath: 'C:/tmp/smoke.db',
-}
-
 async function installApiMocks(page, options = {}) {
   const state = {
     history: [],
     tasks: options.initialTasks ? options.initialTasks.map((task, index) => taskFrom(task, index + 1)) : [],
     skills: [],
     resources: [],
-    workflows: [workflowFrom({ id: 'workflow-1', name: 'Smoke 编排', description: '用于交互验证' }, 1)],
     webhooks: [],
     postedChatMessages: [],
     savedSettings: [],
     uploadedFiles: 0,
     approvalResolutions: [],
     taskRuns: [],
-    sqlQueries: [],
-    workflowExecutions: [],
     channelActions: [],
     feishuConnected: false,
     feishuWizardSessions: [],
@@ -289,41 +262,7 @@ async function installApiMocks(page, options = {}) {
       return json(route, { ok: true })
     }
 
-    if (apiPath === '/sql/datasources' && method === 'GET') return json(route, [smokeDatasource])
-    if (apiPath === '/sql/files' && method === 'GET') return json(route, [])
-    if (apiPath === '/sql/query' && method === 'POST') {
-      state.sqlQueries.push(readJson(request))
-      return json(route, { columns: ['ready'], rows: [{ ready: 1 }], rowCount: 1, truncated: false })
-    }
-
-    if (apiPath === '/orchestration' && method === 'GET') return json(route, state.workflows)
-    if (apiPath === '/orchestration' && method === 'POST') {
-      const workflow = workflowFrom(readJson(request), state.workflows.length + 1)
-      state.workflows.push(workflow)
-      return json(route, workflow, 201)
-    }
-    const workflowMatch = apiPath.match(/^\/orchestration\/([^/]+)(?:\/(execute|active|logs|stop))?$/)
-    if (workflowMatch) {
-      const id = workflowMatch[1]
-      const action = workflowMatch[2]
-      const workflow = state.workflows.find((item) => item.id === id) ?? workflowFrom({ id, name: id }, 1)
-      if (action === 'active' && method === 'GET') return json(route, { active: false })
-      if (action === 'logs' && method === 'GET') return json(route, [{ id: 'log-1', timestamp: Date.now(), status: 'success', message: 'Smoke log' }])
-      if (action === 'execute' && method === 'POST') {
-        state.workflowExecutions.push(id)
-        return json(route, { executionId: `exec-${state.workflowExecutions.length}` })
-      }
-      if (action === 'stop' && method === 'POST') return json(route, { ok: true, stopped: true })
-      if (!action && method === 'PUT') {
-        const next = workflowFrom({ ...workflow, ...readJson(request), id }, state.workflows.length + 1)
-        state.workflows = state.workflows.map((item) => item.id === id ? next : item)
-        return json(route, next)
-      }
-      if (!action && method === 'DELETE') {
-        state.workflows = state.workflows.filter((item) => item.id !== id)
-        return json(route, { ok: true })
-      }
-    }
+    if (apiPath === '/calendar/task-runs') return json(route, state.taskRuns)
 
     if (apiPath === '/channels/wechat/status') return json(route, { running: false })
     if (apiPath === '/channels/wechat/accounts') return json(route, [])
@@ -490,26 +429,14 @@ for (const [name, fn] of [
     await page.waitForFunction(() => !document.body.innerText.includes('交互测试资源'))
     if (state.resources.length !== 0) fail('resource delete did not update mock state')
   }],
-  ['sql-query', async (page) => {
-    const state = await installApiMocks(page)
-    await page.goto(baseUrl + '/workspace/sql', { waitUntil: 'domcontentloaded' })
-    await page.locator('h1').filter({ hasText: 'SQL 工作台' }).waitFor({ timeout: 15_000 })
-    await page.getByRole('button', { name: /运行查询/ }).click()
-    await page.getByText('1 行').waitFor({ timeout: 15_000 })
-    await page.getByText('ready').first().waitFor({ timeout: 10_000 })
-    if (state.sqlQueries[0]?.datasourceId !== 'ds-1') fail('SQL query did not target the seeded datasource')
-  }],
-  ['orchestration-save-run', async (page) => {
-    const state = await installApiMocks(page)
-    await page.goto(baseUrl + '/automations/orchestrations', { waitUntil: 'domcontentloaded' })
-    await page.locator('h1').filter({ hasText: '流程编排' }).waitFor({ timeout: 15_000 })
-    await page.getByRole('button', { name: 'sql' }).click()
-    await page.getByText('sql 节点').waitFor({ timeout: 10_000 })
-    await page.getByRole('button', { name: '保存流程' }).click()
-    await waitUntil(() => Boolean(state.workflows[0]?.nodes?.length), 'workflow save did not include the added node')
-    await page.getByRole('button', { name: '运行流程' }).click()
-    await page.getByText('Smoke log').waitFor({ timeout: 10_000 })
-    if (state.workflowExecutions[0] !== 'workflow-1') fail('workflow execute was not posted')
+  ['scheduled-task-run-history', async (page) => {
+    const state = await installApiMocks(page, { initialTasks: [{ id: 'task-1', title: 'Smoke 定时任务', target: 'terminal', mode: 'once', startDate: new Date().toISOString().slice(0, 10), time: '09:00', command: 'echo smoke', enabled: true }] })
+    await page.goto(baseUrl + '/automations/tasks', { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: '定时任务' }).waitFor({ timeout: 15_000 })
+    await page.getByRole('button', { name: '运行 Smoke 定时任务' }).click()
+    await page.goto(baseUrl + '/automations/runs', { waitUntil: 'domcontentloaded' })
+    await page.getByText('manual smoke run').waitFor({ timeout: 10_000 })
+    if (state.taskRuns.length !== 1) fail('scheduled task run history was not retained')
   }],
   ['channels-connect', async (page) => {
     const state = await installApiMocks(page)

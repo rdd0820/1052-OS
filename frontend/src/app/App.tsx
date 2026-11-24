@@ -6,14 +6,6 @@ const TodayLayout = lazy(() => import('../pages/today'))
 const TodayOverview = lazy(() => import('../pages/today/overview'))
 const TodayActivity = lazy(() => import('../pages/today/activity'))
 const ChatPage = lazy(() => import('../pages/ChatPage'))
-const WorkspaceLayout = lazy(() => import('../pages/workspace'))
-const WorkspaceRepositories = lazy(() => import('../pages/workspace/repositories'))
-const WorkspaceSql = lazy(() => import('../pages/workspace/sql'))
-const WorkspaceDataSources = lazy(() => import('../pages/workspace/datasources'))
-const WorkspaceSqlFiles = lazy(() => import('../pages/workspace/sql-files'))
-const WorkspaceVariables = lazy(() => import('../pages/workspace/variables'))
-const WorkspaceServers = lazy(() => import('../pages/workspace/servers'))
-const WorkspaceShellFiles = lazy(() => import('../pages/workspace/shell-files'))
 const KnowledgeLayout = lazy(() => import('../pages/knowledge'))
 const KnowledgeNotes = lazy(() => import('../pages/knowledge/notes'))
 const KnowledgeWiki = lazy(() => import('../pages/knowledge/wiki'))
@@ -25,7 +17,6 @@ const KnowledgeOutputProfiles = lazy(() => import('../pages/knowledge/output-pro
 const AutomationsLayout = lazy(() => import('../pages/automations'))
 const AutomationsCalendar = lazy(() => import('../pages/automations/calendar'))
 const AutomationsTasks = lazy(() => import('../pages/automations/tasks'))
-const AutomationsOrchestrations = lazy(() => import('../pages/automations/orchestrations'))
 const AutomationsRuns = lazy(() => import('../pages/automations/runs'))
 const CapabilitiesLayout = lazy(() => import('../pages/capabilities'))
 const CapabilitiesSkills = lazy(() => import('../pages/capabilities/skills'))
@@ -51,16 +42,6 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route path="activity" element={<TodayActivity />} />
     </Route>
     <Route path="/chat" element={<ChatPage />} />
-    <Route path="/workspace" element={<WorkspaceLayout />}>
-      <Route index element={<Navigate to="repositories" replace />} />
-      <Route path="repositories" element={<WorkspaceRepositories />} />
-      <Route path="sql" element={<WorkspaceSql />} />
-      <Route path="datasources" element={<WorkspaceDataSources />} />
-      <Route path="sql-files" element={<WorkspaceSqlFiles />} />
-      <Route path="variables" element={<WorkspaceVariables />} />
-      <Route path="servers" element={<WorkspaceServers />} />
-      <Route path="shell-files" element={<WorkspaceShellFiles />} />
-    </Route>
     <Route path="/knowledge" element={<KnowledgeLayout />}>
       <Route index element={<Navigate to="notes" replace />} />
       <Route path="notes" element={<KnowledgeNotes />} />
@@ -75,7 +56,6 @@ const router = createBrowserRouter(createRoutesFromElements(
       <Route index element={<Navigate to="calendar" replace />} />
       <Route path="calendar" element={<AutomationsCalendar />} />
       <Route path="tasks" element={<AutomationsTasks />} />
-      <Route path="orchestrations" element={<AutomationsOrchestrations />} />
       <Route path="runs" element={<AutomationsRuns />} />
     </Route>
     <Route path="/capabilities" element={<CapabilitiesLayout />}>

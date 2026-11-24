@@ -59,7 +59,7 @@
 1052 OS is no longer just a chat page — it is a complete AI agent workspace built around local workflows. It consolidates the following capabilities into a single system:
 
 - A chat-style Agent with progressive-disclosure capability packs
-- Local file system, repository browsing, terminal, SQL and task pipelines
+- Local file access and terminal workflows, plus calendar and scheduled-task pipelines
 - Long-term memory, Wiki, resource library, notes and output profiles
 - Web search, the UAPIs toolbox and the Skill center
 - Calendar, scheduled tasks and a unified notification center
@@ -95,18 +95,16 @@ The current release focuses on:
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="./assets/readme/preview-workspace.png" alt="Workspace and SQL preview" />
+      <strong>Knowledge</strong>
       <br />
-      <strong>Workspace + Knowledge</strong>
-      <br />
-      Repositories, SQL, notes, Wiki, resources, memory and output profiles move into clear section workflows, with complex editors kept desktop-first.
+      Notes, Wiki, resources, memory and output profiles are organized into clear section workflows.
     </td>
     <td width="50%" valign="top">
       <img src="./assets/readme/preview-automations.png" alt="Automation orchestration preview" />
       <br />
       <strong>Automations + Connections</strong>
       <br />
-      Calendar, scheduled tasks, orchestration, execution logs, Skills, UAPIs, search sources and external channels are organized under the new navigation.
+      Calendar, scheduled tasks, execution logs, Skills, UAPIs, search sources and external channels are organized under the new navigation.
     </td>
   </tr>
 </table>
@@ -122,7 +120,7 @@ The current release focuses on:
 | LLM Configuration | Multi-model presets, per-task routing, provider auto-detection. Default preset: `1052 API` |
 | Image Generation | OpenAI-compatible `/images/generations`, Gemini native, Gemini OpenAI-compatible |
 | File System | Search, read, create, replace, insert, copy, move, delete — designed for precise project maintenance |
-| Repository | Local project detection, README preview, directory browsing, source view, image preview, repo packaging/export |
+| Local Files & Terminal | Workspace file search, reading and editing, plus terminal status, commands and working-directory control |
 | Terminal | Read-only and execution terminals are split, multi-shell support, working-directory switching, status tracking, interrupt |
 | Notes | Real file tree, Markdown editing, preview, search, drag-and-drop, directory management |
 | Resource Library | Structured storage of titles, body, notes, tags, status, links and long-form materials |
@@ -211,12 +209,7 @@ Optional:
 - Feishu / WeChat / WeCom development credentials
 - A UAPIs API key
 
-SQL features additionally require:
-
-- Python 3.10+
-- `uv`
-
-If you don't plan to use SQL queries or orchestration, Python and `uv` are not needed.
+Python and `uv` are not required for the current local file, terminal, calendar or scheduled-task workflows.
 
 ### 2. Clone the repository
 
