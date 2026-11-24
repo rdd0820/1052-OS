@@ -218,29 +218,23 @@ export async function updateNotesConfig(input: NotesConfigInput) {
   return toPublicConfig(config, true)
 }
 
-export async function useDefaultNotesConfig() {
-  const resolved = defaultNotesRootPath()
-  await fs.mkdir(resolved, { recursive: true })
-
-  const readmePath = path.join(resolved, 'README.md')
-  if (!(await pathExists(readmePath))) {
-    await fs.writeFile(
-      readmePath,
-      [
-        '# 我的笔记',
-        '',
-        '这是 1052 OS 自动创建的默认笔记目录。',
-        '',
-        '- 你可以在这里创建 Markdown 笔记和文件夹。',
-        '- 也可以随时在笔记页面切换为其他本地文件夹。',
-        '- Agent 可以读取和管理这个目录下的全部笔记；默认权限下写入、删除或移动前仍需先告知并等待确认。',
-        '',
-      ].join('\n'),
-      'utf-8',
-    )
+export async function initializeNotesStorage() {
+  const current = await readConfig()
+  if (current.rootPath) {
+    return toPublicConfig(current, await isDirectory(current.rootPath))
   }
 
-  const config: NotesConfig = { rootPath: resolved }
+  const rootPath = defaultNotesRootPath()
+  await fs.mkdir(rootPath, { recursive: true })
+  const config: NotesConfig = { rootPath }
+  await writeJson(FILE, config)
+  return toPublicConfig(config, true)
+}
+
+export async function useDefaultNotesConfig() {
+  const rootPath = defaultNotesRootPath()
+  await fs.mkdir(rootPath, { recursive: true })
+  const config: NotesConfig = { rootPath }
   await writeJson(FILE, config)
   return toPublicConfig(config, true)
 }
